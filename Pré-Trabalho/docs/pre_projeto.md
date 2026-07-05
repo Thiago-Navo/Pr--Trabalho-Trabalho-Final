@@ -9,9 +9,8 @@
 
 | Nome | GitHub | Responsabilidade |
 |------|---------|------------------|
-| Thiago Rodrigues | https://github.com/thiago-navo | Back-end (Flask, banco de dados e lógica do sistema) |
-| Mauricio Keiser | https://github.com/mauriciokeiser | Front-end (HTML, CSS e JavaScript) |
-| Integrante 3 | | Testes, documentação e integração |
+| Thiago Rodrigues | https://github.com/thiago-navo | Front-end (HTML, CSS e JavaScript e lógica do sistema) | 
+| Mauricio Keiser | https://github.com/mauriciokeiser | Back-end (Flask, banco de dados e lógica do sistema) |
 
 ---
 
