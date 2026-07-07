@@ -3,7 +3,7 @@
 ## 1. Identificação da Equipe
 
 ### Nome do Projeto
-**TechStock** (nome provisório)
+**Pichou** (nome provisório)
 
 ### Integrantes
 
