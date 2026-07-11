@@ -1,2 +1,2 @@
 # Pr--Trabalho-Trabalho-Final
-Sistema de Controle de Estoque de Peças de Informática
+Inventory Flow (Sistema de Gerenciamento de Estoque de Componentes de Informática para Varejistas
