@@ -13,7 +13,7 @@
 | - | - | - |
 | Thiago Rodrigues | [https://github.com/thiago-navo](https://github.com/thiago-navo) | Front-end (HTML, CSS e JavaScript e lógica do sistema) |
 | Mauricio Keiser | [https://github.com/mauriciokeiser](https://github.com/mauriciokeiser) | Back-end (Flask, banco de dados e lógica do sistema) |
-| Pâmela Cristina Rodrigues Barbosa |  |  |
+| Pâmela Cristina Rodrigues Barbosa | https://github.com/Pamela-Barbosa |  |
 
 
 ## 2. Elevator Pitch
