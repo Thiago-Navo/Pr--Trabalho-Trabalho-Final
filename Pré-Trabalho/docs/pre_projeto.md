@@ -4,7 +4,7 @@
 
 ### Nome do Projeto
 
-- **InvFlow:** Destaca o fluxo inteligente de mercadorias.
+- **TechStock:** Destaca o fluxo inteligente de mercadorias.
 
 
 ### Integrantes
