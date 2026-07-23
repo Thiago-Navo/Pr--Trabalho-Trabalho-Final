@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TechStock</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  </head>
+  <body>
+    <main class="container">
+      <h1>TechStock</h1>
+      <p>Base inicial do projeto com Flask + Jinja2 + MVC.</p>
+      <nav>
+        <a href="{{ url_for('front.index') }}">Início</a>
+        <a href="{{ url_for('front.sobre') }}">Sobre</a>
+      </nav>
+    </main>
+  </body>
+</html>
