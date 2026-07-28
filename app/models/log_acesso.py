@@ -1,19 +1,29 @@
-from __future__ import annotations
+"""Modelo LogAcesso — a ser implementado pelo desenvolvedor.
 
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
+Deve conter funções para operações na tabela log_acesso (auditoria)
+utilizando as funções do módulo app.database.db (execute, fetch_all):
+    - listar_todos(limite=100) -> list[sqlite3.Row]
+    - registrar(acao, entidade, entidade_id, usuario_id,
+                dados_anteriores, dados_novos, ip, user_agent) -> int (id)
+"""
 
 
-@dataclass(slots=True)
 class LogAcesso:
-    id: int
-    acao: str
-    entidade: str
-    entidade_id: Optional[int] = None
-    usuario_id: Optional[int] = None
-    dados_anteriores: Optional[str] = None
-    dados_novos: Optional[str] = None
-    ip: Optional[str] = None
-    user_agent: Optional[str] = None
-    criado_em: Optional[datetime] = None
+    """Operações com a tabela log_acesso."""
+
+    @staticmethod
+    def listar_todos(limite: int = 100):
+        raise NotImplementedError
+
+    @staticmethod
+    def registrar(
+        acao: str,
+        entidade: str,
+        entidade_id: int = None,
+        usuario_id: int = None,
+        dados_anteriores: str = None,
+        dados_novos: str = None,
+        ip: str = None,
+        user_agent: str = None,
+    ) -> int:
+        raise NotImplementedError

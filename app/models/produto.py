@@ -1,22 +1,39 @@
-from __future__ import annotations
+"""Modelo Produto — a ser implementado pelo desenvolvedor.
 
-from dataclasses import dataclass
-from typing import Optional
+Deve conter funções para CRUD da tabela produto utilizando as funções
+do módulo app.database.db (execute, fetch_one, fetch_all):
+    - contar_total()           -> int
+    - listar_todos()           -> list[sqlite3.Row]
+    - buscar_por_id(id)        -> sqlite3.Row
+    - criar(dados: dict)       -> int (id)
+    - atualizar(id, dados)     -> UPDATE
+    - deletar(id)              -> DELETE
+"""
 
 
-@dataclass(slots=True)
 class Produto:
-    id: int
-    nome: str
-    descricao: Optional[str] = None
-    altura: Optional[float] = None
-    largura: Optional[float] = None
-    peso: Optional[float] = None
-    cor_predominante: Optional[str] = None
-    qtd_min: int = 0
-    qtd_max: Optional[int] = None
-    marca: Optional[str] = None
-    modelo: Optional[str] = None
-    categoria_id: Optional[int] = None
-    fabricante_id: Optional[int] = None
-    fornecedor_id: Optional[int] = None
+    """Operações com a tabela produto."""
+
+    @staticmethod
+    def contar_total() -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    def listar_todos():
+        raise NotImplementedError
+
+    @staticmethod
+    def buscar_por_id(id: int):
+        raise NotImplementedError
+
+    @staticmethod
+    def criar(dados: dict) -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    def atualizar(id: int, dados: dict):
+        raise NotImplementedError
+
+    @staticmethod
+    def deletar(id: int):
+        raise NotImplementedError
