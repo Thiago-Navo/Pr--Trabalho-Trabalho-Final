@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block titulo %}Ruas — Sistema de Estoque{% endblock %}
+
+{% block busca %}
+  <i class="bi bi-search"></i>
+  <input type="text" id="buscaRua" placeholder="Pesquisar rua...">
+{% endblock %}
+
+{% block conteudo %}
+  <div class="page-header">
+    <div>
+      <h1>Ruas</h1>
+      <p>Endereços do galpão. Cada rua fica travada na categoria do primeiro produto guardado nela.</p>
+    </div>
+    <button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#modalRua">
+      <i class="bi bi-plus-lg"></i> Nova rua
+    </button>
+  </div>
+
+  <div class="card-panel">
+    <div class="card-panel-head">
+      <h2>Todas as ruas</h2>
+      <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ ruas|length }} rua(s)</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table-custom" id="tabelaRuas">
+        <thead>
+          <tr>
+            <th>Rua</th>
+            <th>Categoria travada</th>
+            <th>Produtos distintos</th>
+            <th>Quantidade total</th>
+            {% if papel_logado == 'admin' %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in ruas %}
+          <tr data-nome="{{ r.nome|lower }}">
+            <td style="font-weight:600;">{{ r.nome }}</td>
+            <td>
+              {% if r.tipo %}
+                <span class="badge-tag ok">{{ r.tipo }}</span>
+              {% else %}
+                <span class="badge-tag" style="background:var(--color-border); color:var(--color-text-muted);">Livre</span>
+              {% endif %}
+            </td>
+            <td>{{ r.produtos_distintos }}</td>
+            <td class="qtd">{{ r.qtd_total }}</td>
+            {% if papel_logado == 'admin' %}
+            <td class="row-actions">
+              <button type="button" title="Editar" class="btn-editar-rua"
+                      data-id="{{ r.id }}" data-nome="{{ r.nome }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="{{ url_for('excluir_rua', rua_id=r.id) }}"
+                    onsubmit="return confirm('Excluir a rua {{ r.nome }}?');" style="display:inline;">
+                <button title="Excluir" type="submit"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center; color:var(--color-text-muted); padding:24px;">Nenhuma rua cadastrada ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalRua" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content" style="border-radius:12px; border:none;">
+        <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
+          <h5 class="modal-title" style="font-family:var(--font-display);">Nova rua</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form method="post" action="{{ url_for('nova_rua') }}">
+          <div class="modal-body">
+            <div class="form-field">
+              <label for="nome">Nome / código da rua</label>
+              <input type="text" id="nome" name="nome" required placeholder="Ex: Rua A1">
+            </div>
+            <p class="hint">A categoria da rua é definida automaticamente pelo primeiro produto guardado nela.</p>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-primary-custom">Salvar rua</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {% if papel_logado == 'admin' %}
+  <div class="modal fade" id="modalEditarRua" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content" style="border-radius:12px; border:none;">
+        <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
+          <h5 class="modal-title" style="font-family:var(--font-display);">Editar rua</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form id="formEditarRua" method="post" action="">
+          <div class="modal-body">
+            <div class="form-field">
+              <label for="reNome">Nome / código da rua</label>
+              <input type="text" id="reNome" name="nome" required>
+            </div>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-primary-custom">Salvar alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("buscaRua").addEventListener("input", (e) => {
+    const termo = e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#tabelaRuas tbody tr[data-nome]").forEach((tr) => {
+      tr.style.display = tr.dataset.nome.includes(termo) ? "" : "none";
+    });
+  });
+
+  function abrirEdicaoRua(id, nome) {
+    const form = document.getElementById("formEditarRua");
+    form.action = `/ruas/${id}/editar`;
+    document.getElementById("reNome").value = nome;
+    new bootstrap.Modal(document.getElementById("modalEditarRua")).show();
+  }
+
+  document.querySelectorAll(".btn-editar-rua").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      abrirEdicaoRua(btn.dataset.id, btn.dataset.nome);
+    });
+  });
+</script>
+{% endblock %}
