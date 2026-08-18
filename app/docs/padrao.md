@@ -82,7 +82,7 @@ from app.database import database
 
 # Dentro do model:
 db = database.get_connection()
-resultado = db.execute("SELECT * FROM produto").fetchall()
+resultado = db.execute("SELECT * FROM produtos").fetchall()
 ```
 
 **Métodos:**
@@ -107,7 +107,7 @@ A controller **não separa API de frontend**. Tudo é feito no mesmo fluxo:
 @front_bp.route("/produtos")
 def listar_produtos():
     db = database.get_connection()
-    produtos = db.execute("SELECT * FROM produto").fetchall()
+    produtos = db.execute("SELECT * FROM produtos").fetchall()
     return render_template("produtos.html", produtos=produtos)
 ```
 
@@ -127,7 +127,7 @@ Controller `listar_produtos()`
         ↓
 db = database.get_connection()
         ↓
-db.execute("SELECT * FROM produto")
+db.execute("SELECT * FROM produtos")
         ↓
 render_template("produtos.html", produtos=dados)
         ↓
@@ -140,11 +140,11 @@ Template Jinja2 renderiza a página com os dados
 
 | Model | Tabela | Descrição |
 |-------|--------|-----------|
-| `Usuario` | `usuario` | Usuários do sistema |
-| `Empresa` | `empresa` | Fabricantes e fornecedores |
-| `Categoria` | `categoria` | Categorias e subcategorias |
-| `Produto` | `produto` | Itens do estoque |
-| `EnderecoEstoque` | `endereco_estoque` | Hierarquia do estoque (corredor → modulo → nivel → vao) |
-| `EstoqueLocal` | `estoque_local` | Vínculo produto ↔ endereço com quantidade |
-| `Movimento` | `movimento` | Entradas, saídas, transferências e ajustes |
-| `LogAcesso` | `log_acesso` | Auditoria geral do sistema |
+| `Usuario` | `usuarios` | Usuários do sistema |
+| `Empresa` | `empresas` | Fabricantes e fornecedores |
+| `Categoria` | `categorias` | Categorias e subcategorias |
+| `Produto` | `produtos` | Itens do estoque |
+| `EnderecoEstoque` | `enderecos_estoque` | Hierarquia do estoque (corredor → modulo → nivel → vao) |
+| `EstoqueLocal` | `estoques_locais` | Vínculo produto ↔ endereço com quantidade |
+| `Movimento` | `movimentacoes` | Entradas, saídas, transferências e ajustes |
+| `LogAcesso` | `logs_acesso` | Auditoria geral do sistema |

@@ -5,9 +5,9 @@
 -- =============================================================
 
 -- -------------------------------------------------------------
--- 1. USUARIO
+-- 1. USUARIOS
 -- -------------------------------------------------------------
-CREATE TABLE usuario (
+CREATE TABLE usuarios (
     id               SERIAL        PRIMARY KEY,
     nome             VARCHAR(120)  NOT NULL,
     email            VARCHAR(120)  NOT NULL UNIQUE,
@@ -22,9 +22,9 @@ CREATE TABLE usuario (
 );
 
 -- -------------------------------------------------------------
--- 2. EMPRESA  (fabricante + fornecedor + endereço — flat)
+-- 2. EMPRESAS  (fabricante + fornecedor + endereço — flat)
 -- -------------------------------------------------------------
-CREATE TABLE empresa (
+CREATE TABLE empresas (
     id               SERIAL        PRIMARY KEY,
     tipo             VARCHAR(20)   NOT NULL CHECK (tipo IN ('fabricante','fornecedor','ambos')),
     cnpj             VARCHAR(18)   UNIQUE,
@@ -44,7 +44,7 @@ CREATE TABLE empresa (
     nacionalidade    VARCHAR(60),
     site_fabric      VARCHAR(200),
     -- responsável (útil para fornecedor)
-    usuario_id       INT           REFERENCES usuario(id) ON DELETE SET NULL,
+    usuario_id       INT           REFERENCES usuarios(id) ON DELETE SET NULL,
     ativo_online     BOOLEAN       NOT NULL DEFAULT TRUE,
     dt_cadastro      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     dt_atualizado    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
@@ -52,9 +52,9 @@ CREATE TABLE empresa (
 );
 
 -- -------------------------------------------------------------
--- 3. CATEGORIA
+-- 3. CATEGORIAS
 -- -------------------------------------------------------------
-CREATE TABLE categoria (
+CREATE TABLE categorias (
     id               SERIAL        PRIMARY KEY,
     nome             VARCHAR(80)   NOT NULL,
     subcategoria     VARCHAR(80),
@@ -63,9 +63,9 @@ CREATE TABLE categoria (
 );
 
 -- -------------------------------------------------------------
--- 4. PRODUTO
+-- 4. PRODUTOS
 -- -------------------------------------------------------------
-CREATE TABLE produto (
+CREATE TABLE produtos (
     id               SERIAL        PRIMARY KEY,
     nome             VARCHAR(160)  NOT NULL,
     descricao        TEXT,
@@ -77,19 +77,19 @@ CREATE TABLE produto (
     qtd_max          INT,
     marca            VARCHAR(80),
     modelo           VARCHAR(80),
-    categoria_id     INT           REFERENCES categoria(id) ON DELETE SET NULL,
-    fabricante_id    INT           REFERENCES empresa(id)   ON DELETE SET NULL,
-    fornecedor_id    INT           REFERENCES empresa(id)   ON DELETE SET NULL
+    categoria_id     INT           REFERENCES categorias(id) ON DELETE SET NULL,
+    fabricante_id    INT           REFERENCES empresas(id)   ON DELETE SET NULL,
+    fornecedor_id    INT           REFERENCES empresas(id)   ON DELETE SET NULL
 );
 
 -- -------------------------------------------------------------
--- 5. ENDERECO_ESTOQUE  (árvore via caminho materializado)
+-- 5. ENDERECOS_ESTOQUE  (árvore via caminho materializado)
 --    Hierarquia: corredor → modulo → nivel → vao
 --    caminho = caminho_pai || '/' || id  (calculado após INSERT)
 -- -------------------------------------------------------------
-CREATE TABLE endereco_estoque (
+CREATE TABLE enderecos_estoque (
     id               SERIAL        PRIMARY KEY,
-    parent_id        INT           REFERENCES endereco_estoque(id) ON DELETE RESTRICT,
+    parent_id        INT           REFERENCES enderecos_estoque(id) ON DELETE RESTRICT,
     nome             VARCHAR(80)   NOT NULL,
     tipo             VARCHAR(10)   NOT NULL CHECK (tipo IN ('corredor','modulo','nivel','vao')),
     -- caminho materializado, ex: "1", "1/3", "1/3/7", "1/3/7/12"
@@ -99,50 +99,50 @@ CREATE TABLE endereco_estoque (
 );
 
 -- Índice para buscas por subtree: WHERE caminho LIKE '1/3/%'
-CREATE INDEX idx_ee_caminho ON endereco_estoque (caminho);
-CREATE INDEX idx_ee_parent  ON endereco_estoque (parent_id);
-CREATE INDEX idx_ee_tipo    ON endereco_estoque (tipo);
+CREATE INDEX idx_ee_caminho ON enderecos_estoque (caminho);
+CREATE INDEX idx_ee_parent  ON enderecos_estoque (parent_id);
+CREATE INDEX idx_ee_tipo    ON enderecos_estoque (tipo);
 
 -- -------------------------------------------------------------
--- 6. ESTOQUE_LOCAL
+-- 6. ESTOQUES_LOCAIS
 --    Só deve apontar para endereços do tipo 'vao' (constraint via CHECK + trigger)
 -- -------------------------------------------------------------
-CREATE TABLE estoque_local (
+CREATE TABLE estoques_locais (
     id                    SERIAL  PRIMARY KEY,
-    produto_id            INT     NOT NULL REFERENCES produto(id)           ON DELETE RESTRICT,
-    endereco_estoque_id   INT     NOT NULL REFERENCES endereco_estoque(id)  ON DELETE RESTRICT,
+    produto_id            INT     NOT NULL REFERENCES produtos(id)           ON DELETE RESTRICT,
+    endereco_estoque_id   INT     NOT NULL REFERENCES enderecos_estoque(id)  ON DELETE RESTRICT,
     quantidade            INT     NOT NULL DEFAULT 0 CHECK (quantidade >= 0),
     UNIQUE (produto_id, endereco_estoque_id)
 );
 
-CREATE INDEX idx_el_produto   ON estoque_local (produto_id);
-CREATE INDEX idx_el_endereco  ON estoque_local (endereco_estoque_id);
+CREATE INDEX idx_el_produto   ON estoques_locais (produto_id);
+CREATE INDEX idx_el_endereco  ON estoques_locais (endereco_estoque_id);
 
 -- -------------------------------------------------------------
--- 7. MOVIMENTO
+-- 7. MOVIMENTACOES
 -- -------------------------------------------------------------
-CREATE TABLE movimento (
+CREATE TABLE movimentacoes (
     id                    SERIAL        PRIMARY KEY,
-    produto_id            INT           NOT NULL REFERENCES produto(id)          ON DELETE RESTRICT,
+    produto_id            INT           NOT NULL REFERENCES produtos(id)          ON DELETE RESTRICT,
     quantidade            INT           NOT NULL CHECK (quantidade > 0),
-    origem_id             INT           REFERENCES estoque_local(id)             ON DELETE SET NULL,
-    destino_id            INT           REFERENCES estoque_local(id)             ON DELETE SET NULL,
+    origem_id             INT           REFERENCES estoques_locais(id)             ON DELETE SET NULL,
+    destino_id            INT           REFERENCES estoques_locais(id)             ON DELETE SET NULL,
     tipo_movimento        VARCHAR(20)   NOT NULL
                           CHECK (tipo_movimento IN ('entrada','saida','transferencia','ajuste')),
-    usuario_id            INT           REFERENCES usuario(id)                   ON DELETE SET NULL,
+    usuario_id            INT           REFERENCES usuarios(id)                   ON DELETE SET NULL,
     observacao            TEXT,
     criado_em             TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_mov_produto  ON movimento (produto_id);
-CREATE INDEX idx_mov_criado   ON movimento (criado_em DESC);
+CREATE INDEX idx_mov_produto  ON movimentacoes (produto_id);
+CREATE INDEX idx_mov_criado   ON movimentacoes (criado_em DESC);
 
 -- -------------------------------------------------------------
--- 8. LOG_ACESSO  (auditoria geral)
+-- 8. LOGS_ACESSO  (auditoria geral)
 -- -------------------------------------------------------------
-CREATE TABLE log_acesso (
+CREATE TABLE logs_acesso (
     id               BIGSERIAL     PRIMARY KEY,
-    usuario_id       INT           REFERENCES usuario(id) ON DELETE SET NULL,
+    usuario_id       INT           REFERENCES usuarios(id) ON DELETE SET NULL,
     acao             VARCHAR(40)   NOT NULL,   -- ex: 'CREATE', 'UPDATE', 'DELETE', 'LOGIN'
     entidade         VARCHAR(60)   NOT NULL,   -- ex: 'produto', 'movimento'
     entidade_id      INT,
@@ -153,6 +153,6 @@ CREATE TABLE log_acesso (
     criado_em        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_log_usuario  ON log_acesso (usuario_id);
-CREATE INDEX idx_log_entidade ON log_acesso (entidade, entidade_id);
-CREATE INDEX idx_log_criado   ON log_acesso (criado_em DESC);
+CREATE INDEX idx_log_usuario  ON logs_acesso (usuario_id);
+CREATE INDEX idx_log_entidade ON logs_acesso (entidade, entidade_id);
+CREATE INDEX idx_log_criado   ON logs_acesso (criado_em DESC);
