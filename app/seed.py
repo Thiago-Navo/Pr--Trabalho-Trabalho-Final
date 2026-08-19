@@ -1,12 +1,10 @@
 import sqlite3
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-
-DB_NAME = "techstock.db"
-
+from app.database import database  # Importa a instância centralizada
 
 def get_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(database.db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
