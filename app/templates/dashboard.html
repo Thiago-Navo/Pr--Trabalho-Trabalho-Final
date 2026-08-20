@@ -21,42 +21,42 @@
 
   <div class="kpi-grid">
     <div class="kpi-card">
+      <div class="kpi-icon"><i class="bi bi-box-seam"></i></div>
       <div class="kpi-label">Produtos cadastrados</div>
       <div class="kpi-value">{{ total_produtos }}</div>
       <div class="kpi-sub">Em {{ total_categorias }} categoria{{ 's' if total_categorias != 1 }}</div>
     </div>
     <div class="kpi-card danger">
+      <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
       <div class="kpi-label">Estoque baixo</div>
       <div class="kpi-value">{{ estoque_baixo }}</div>
       <div class="kpi-sub">Abaixo do mínimo definido</div>
     </div>
     <div class="kpi-card success">
+      <div class="kpi-icon"><i class="bi bi-box-arrow-in-down"></i></div>
       <div class="kpi-label">Entradas (7 dias)</div>
       <div class="kpi-value">{{ entradas_7d }}</div>
       <div class="kpi-sub">Itens recebidos</div>
     </div>
     <div class="kpi-card warning">
+      <div class="kpi-icon"><i class="bi bi-box-arrow-up"></i></div>
       <div class="kpi-label">Saídas (7 dias)</div>
       <div class="kpi-value">{{ saidas_7d }}</div>
       <div class="kpi-sub">Itens despachados</div>
     </div>
   </div>
 
-  <div class="row g-3">
-    <div class="col-lg-7">
-      <div class="card-panel" style="height:100%;">
-        <div class="card-panel-head"><h2>Movimentações dos últimos 7 dias</h2></div>
-        <div style="height:280px;">
-          <canvas id="graficoMovimentacoes"></canvas>
-        </div>
+  <div class="dashboard-grid">
+    <div class="chart-card">
+      <div class="card-panel-head"><h2>Movimentações dos últimos 7 dias</h2></div>
+      <div class="chart-canvas-wrap">
+        <canvas id="graficoMovimentacoes"></canvas>
       </div>
     </div>
-    <div class="col-lg-5">
-      <div class="card-panel" style="height:100%;">
-        <div class="card-panel-head"><h2>Itens por categoria</h2></div>
-        <div style="height:280px;">
-          <canvas id="graficoCategorias"></canvas>
-        </div>
+    <div class="chart-card">
+      <div class="card-panel-head"><h2>Itens por categoria</h2></div>
+      <div class="chart-canvas-wrap">
+        <canvas id="graficoCategorias"></canvas>
       </div>
     </div>
   </div>
@@ -103,7 +103,9 @@
                 <i class="bi bi-pencil"></i>
               </button>
               <form method="post" action="{{ url_for('excluir_produto', produto_id=p.id) }}"
-                    onsubmit="return confirm('Excluir o produto {{ p.nome }}?');" style="display:inline;">
+                    class="form-confirmar-exclusao" style="display:inline;"
+                    data-confirmar-titulo="Excluir produto"
+                    data-confirmar-mensagem="Tem certeza que deseja excluir “{{ p.nome }}”? Essa ação não pode ser desfeita.">
                 <button title="Excluir" type="submit"><i class="bi bi-trash"></i></button>
               </form>
               {% endif %}
@@ -118,7 +120,7 @@
   </div>
 
   <!-- Modal de edição rápida (nome / mínimo / máximo) -->
-  <div class="modal fade" id="modalEditarProduto" tabindex="-1" aria-hidden="true">
+  <div class="modal fade" id="modalEditarProduto" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content" style="border-radius:12px; border:none;">
         <div class="modal-header" style="border-bottom:1px solid var(--color-border);">

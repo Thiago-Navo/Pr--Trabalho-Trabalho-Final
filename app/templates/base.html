@@ -27,7 +27,7 @@
     <aside class="sidebar">
       <div class="sidebar-brand">
         <span class="brand-mark"><i class="bi bi-hdd-stack"></i></span>
-        EstoqueTech
+        Techstock
       </div>
       <ul class="sidebar-nav">
         <li class="nav-section">Visão geral</li>
@@ -107,6 +107,30 @@
 
         {% block conteudo %}{% endblock %}
       </main>
+    </div>
+  </div>
+
+  <!-- Modal de confirmação de exclusão, compartilhado por todas as páginas.
+       Fica fora de #app-content de propósito: assim ele sobrevive às trocas
+       de página feitas pelo nav.js e não precisa ser reinicializado a cada
+       navegação. Quem quiser usar, é só marcar o <form> com a classe
+       "form-confirmar-exclusao" e (opcionalmente) os atributos
+       data-confirmar-titulo / data-confirmar-mensagem. -->
+  <div class="modal fade" id="modalConfirmarExclusao" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content confirm-modal-content">
+        <div class="confirm-modal-body">
+          <div class="confirm-modal-icon"><i class="bi bi-exclamation-triangle"></i></div>
+          <h5 class="confirm-modal-title" id="confirmarExclusaoTitulo">Confirmar exclusão</h5>
+          <p class="confirm-modal-texto" id="confirmarExclusaoTexto">Tem certeza que deseja excluir este item? Essa ação não pode ser desfeita.</p>
+        </div>
+        <div class="confirm-modal-footer">
+          <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn-danger-custom" id="btnConfirmarExclusao">
+            <i class="bi bi-trash"></i> Excluir
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

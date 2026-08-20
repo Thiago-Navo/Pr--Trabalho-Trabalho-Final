@@ -53,7 +53,9 @@
                 <i class="bi bi-pencil"></i>
               </button>
               <form method="post" action="{{ url_for('excluir_rua', rua_id=r.id) }}"
-                    onsubmit="return confirm('Excluir a rua {{ r.nome }}?');" style="display:inline;">
+                    class="form-confirmar-exclusao" style="display:inline;"
+                    data-confirmar-titulo="Excluir rua"
+                    data-confirmar-mensagem="Tem certeza que deseja excluir a rua “{{ r.nome }}”? Essa ação não pode ser desfeita.">
                 <button title="Excluir" type="submit"><i class="bi bi-trash"></i></button>
               </form>
             </td>
@@ -67,7 +69,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="modalRua" tabindex="-1" aria-hidden="true">
+  <div class="modal fade" id="modalRua" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content" style="border-radius:12px; border:none;">
         <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
@@ -92,7 +94,7 @@
   </div>
 
   {% if papel_logado == 'admin' %}
-  <div class="modal fade" id="modalEditarRua" tabindex="-1" aria-hidden="true">
+  <div class="modal fade" id="modalEditarRua" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content" style="border-radius:12px; border:none;">
         <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
