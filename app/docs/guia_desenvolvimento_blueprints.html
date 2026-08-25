@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guia de Arquitetura Flask: Blueprints, Rotas & Integração — TechStock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0B0F17;
+      --bg-card: #131B2A;
+      --bg-card-hover: #1A2438;
+      --bg-code: #0A0D14;
+      --border-color: #223049;
+      --border-focus: #3B82F6;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+
+      --accent-blue: #38BDF8;
+      --accent-purple: #A855F7;
+      --accent-green: #34D399;
+      --accent-amber: #FBBF24;
+      --accent-rose: #FB7185;
+
+      --front-color: #38BDF8;
+      --back-color: #34D399;
+      --tag-bg: rgba(56, 189, 248, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 30px;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--accent-blue);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+
+    .header h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #FFFFFF 30%, #94A3B8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 800px;
+    }
+
+    /* Inline Code Tags Only */
+    :not(pre)>code {
+      font-family: 'Fira Code', monospace;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: var(--accent-blue);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.86em;
+      white-space: nowrap;
+    }
+
+    /* Divisão de Papéis Cards */
+    .roles-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .role-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+    }
+
+    .role-card.front {
+      border-left: 5px solid var(--front-color);
+    }
+
+    .role-card.back {
+      border-left: 5px solid var(--back-color);
+    }
+
+    .role-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .role-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .role-avatar {
+      font-size: 1.8rem;
+    }
+
+    .role-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      line-height: 1.2;
+    }
+
+    .role-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .role-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .role-card.front .role-badge {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--front-color);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .role-card.back .role-badge {
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--back-color);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .role-items-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .role-item {
+      background: #0E1522;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .role-item:hover {
+      border-color: #2D3D5E;
+      background: #111A2B;
+    }
+
+    .role-item-icon {
+      font-size: 1.25rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .role-item-content {
+      flex: 1;
+    }
+
+    .role-item-content strong {
+      display: block;
+      color: #FFFFFF;
+      font-size: 0.93rem;
+      margin-bottom: 5px;
+    }
+
+    .role-item-content p {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    /* Sections */
+    .section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 36px;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #FFFFFF;
+    }
+
+    .section-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #60A5FA;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+
+    /* Diagram */
+    .diagram-box {
+      background: #0D131F;
+      border: 1px dashed var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      text-align: center;
+    }
+
+    .flow-steps {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .flow-node {
+      flex: 1;
+      min-width: 160px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px 12px;
+      text-align: center;
+    }
+
+    .flow-node.front-node {
+      border-top: 3px solid var(--front-color);
+    }
+
+    .flow-node.back-node {
+      border-top: 3px solid var(--back-color);
+    }
+
+    .flow-node.db-node {
+      border-top: 3px solid var(--accent-amber);
+    }
+
+    .flow-node h4 {
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .flow-node p {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .flow-arrow {
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+
+    /* Code Blocks */
+    .code-block {
+      background: var(--bg-code);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin: 16px 0 24px;
+      overflow: hidden;
+    }
+
+    .code-header {
+      background: #111724;
+      padding: 8px 16px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .code-lang {
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      color: #E2E8F0;
+      white-space: pre;
+    }
+
+    pre code {
+      font-family: inherit;
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      border-radius: 0 !important;
+      color: inherit !important;
+      white-space: pre !important;
+      word-break: normal !important;
+      font-size: inherit !important;
+      display: block;
+    }
+
+    /* Syntax Highlighting Mock */
+    .kw {
+      color: #F472B6;
+      font-weight: 600;
+    }
+
+    /* keywords */
+    .fn {
+      color: #60A5FA;
+    }
+
+    /* functions/decorators */
+    .str {
+      color: #34D399;
+    }
+
+    /* strings */
+    .num {
+      color: #FBBF24;
+    }
+
+    /* numbers */
+    .cm {
+      color: #64748B;
+      font-style: italic;
+    }
+
+    /* comments */
+    .cls {
+      color: #A78BFA;
+      font-weight: 600;
+    }
+
+    /* classes */
+    .jinja {
+      color: #F59E0B;
+    }
+
+    /* jinja tags */
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.9rem;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .data-table th {
+      background: #0E1522;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-card-hover);
+    }
+
+    /* HTTP Method Badges */
+    .badge-method {
+      display: inline-block;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .badge-get {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38BDF8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .badge-post {
+      background: rgba(52, 211, 153, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .badge-put {
+      background: rgba(251, 191, 36, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .badge-delete {
+      background: rgba(251, 113, 133, 0.15);
+      color: #FB7185;
+      border: 1px solid rgba(251, 113, 133, 0.3);
+    }
+
+    /* Highlights & Tips */
+    .callout {
+      border-left: 4px solid var(--accent-blue);
+      background: rgba(56, 189, 248, 0.07);
+      padding: 16px 20px;
+      border-radius: 0 10px 10px 0;
+      margin: 16px 0;
+      font-size: 0.9rem;
+    }
+
+    .callout.warning {
+      border-left-color: var(--accent-amber);
+      background: rgba(251, 191, 36, 0.07);
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Interactive Checklist */
+    .checklist {
+      list-style: none;
+      margin-top: 16px;
+    }
+
+    .checklist li {
+      padding: 10px 14px;
+      background: #0E1522;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+
+    .checklist-icon {
+      color: var(--accent-green);
+      font-weight: bold;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding-top: 40px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+      .roles-banner {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-steps {
+        flex-direction: column;
+      }
+
+      .flow-arrow {
+        transform: rotate(90deg);
+        margin: 4px 0;
+      }
+
+      .section {
+        padding: 20px;
+      }
+
+      .header h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-badge">Guia de Engenharia • TechStock WMS</div>
+      <h1>Flask Blueprints, Rotas & Integração</h1>
+      <p>Manual prático para estruturação de rotas HTTP, conexões de banco de dados SQLite, passagem de parâmetros
+        Jinja2 e divisão de trabalho entre Front-End e Back-End.</p>
+    </header>
+
+    <!-- Divisão de Papéis (Thiago vs Maurício) -->
+    <div class="roles-container">
+
+      <!-- Card Thiago -->
+      <div class="role-card front">
+        <div class="role-header">
+          <div class="role-title-group">
+            <span class="role-avatar">🎨</span>
+            <div>
+              <h3 class="role-title">Thiago Rodrigues</h3>
+              <span class="role-subtitle">Especialista Front-End (Telas & Experiência)</span>
+            </div>
+          </div>
+          <span class="role-badge">Front-End</span>
+        </div>
+
+        <div class="role-items-grid">
+          <div class="role-item">
+            <div class="role-item-icon">📁</div>
+            <div class="role-item-content">
+              <strong>Criação de Templates</strong>
+              <p>Desenvolve os arquivos HTML em <code>app/templates/</code> com herança do <code>base.html</code>.</p>
+            </div>
+          </div>
+
+          <div class="role-item">
+            <div class="role-item-icon">📝</div>
+            <div class="role-item-content">
+              <strong>Formulários & Inputs</strong>
+              <p>Configura tags <code>&lt;form method="POST" action="{{ url_for('...') }}"&gt;</code> e define o
+                atributo <code>name="campo"</code> em cada input.</p>
+            </div>
+          </div>
+
+          <div class="role-item">
+            <div class="role-item-icon">📊</div>
+            <div class="role-item-content">
+              <strong>Exibição de Dados (Jinja2)</strong>
+              <p>Lê as variáveis passadas pelo Python (ex: <code>{{ produtos }}</code>,
+                <code>{{ total_produtos }}</code>) e usa loops <code>{% for p in produtos %}</code>.
+              </p>
+            </div>
+          </div>
+
+          <div class="role-item">
+            <div class="role-item-icon">⚡</div>
+            <div class="role-item-content">
+              <strong>Interatividade & AJAX</strong>
+              <p>Consome rotas da API com <code>fetch('/api/produtos/...')</code> e controla modais Bootstrap e gráficos
+                Chart.js.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Maurício -->
+      <div class="role-card back">
+        <div class="role-header">
+          <div class="role-title-group">
+            <span class="role-avatar">⚙️</span>
+            <div>
+              <h3 class="role-title">Maurício Keiser</h3>
+              <span class="role-subtitle">Especialista Back-End (Lógica, Banco & Rotas)</span>
+            </div>
+          </div>
+          <span class="role-badge">Back-End</span>
+        </div>
+
+        <div class="role-items-grid">
+          <div class="role-item">
+            <div class="role-item-icon">🔌</div>
+            <div class="role-item-content">
+              <strong>Blueprints & Rotas</strong>
+              <p>Define e organiza os Blueprints em <code>app/controllers/</code> mapeando as URLs e métodos HTTP (GET,
+                POST).</p>
+            </div>
+          </div>
+
+          <div class="role-item">
+            <div class="role-item-icon">📥</div>
+            <div class="role-item-content">
+              <strong>Processamento de Dados</strong>
+              <p>Captura valores enviados pelos formulários com <code>request.form.get('campo')</code> e parâmetros com
+                <code>request.args.get('q')</code>.
+              </p>
+            </div>
+          </div>
+
+          <div class="role-item">
+            <div class="role-item-icon">🗄️</div>
+            <div class="role-item-content">
+              <strong>Persistência no SQLite</strong>
+              <p>Executa queries via <code>database.get_connection()</code>, roda <code>db.commit()</code> e gerencia o
+                <code>seed.py</code>.
+              </p>
+            </div>
+          </div>
+
+          <div class="role-item">
+            <div class="role-item-icon">🔄</div>
+            <div class="role-item-content">
+              <strong>Respostas & Notificações</strong>
+              <p>Envia dados ao template via <code>render_template()</code>, retorna JSON com <code>jsonify()</code> e
+                dispara <code>flash()</code>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Fluxo de Execução da Requisição -->
+    <div class="diagram-box">
+      <h3 style="color: #FFFFFF; font-size: 1rem; margin-bottom: 16px;">🔄 Ciclo Completo de uma Requisição no TechStock
+      </h3>
+      <div class="flow-steps">
+        <div class="flow-node front-node">
+          <h4>1. Navegador (Front)</h4>
+          <p>Usuário clica em link ou envia <code>&lt;form&gt;</code></p>
+        </div>
+        <div class="flow-arrow">➔</div>
+        <div class="flow-node back-node">
+          <h4>2. Blueprint / Rota</h4>
+          <p>Flask recebe <code>request</code> e chama a função</p>
+        </div>
+        <div class="flow-arrow">➔</div>
+        <div class="flow-node db-node">
+          <h4>3. SQLite (Banco)</h4>
+          <p><code>db.execute("SELECT...")</code> busca/grava dados</p>
+        </div>
+        <div class="flow-arrow">➔</div>
+        <div class="flow-node front-node">
+          <h4>4. Template (Jinja2)</h4>
+          <p><code>render_template()</code> injeta dados no HTML</p>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- SEÇÃO 2: MÉTODOS HTTP & DEFINIÇÃO DE ROTAS -->
+    <section class="section">
+      <div class="section-title">
+        <span class="section-num">1</span>
+        <span>Rotas e Métodos HTTP (GET, POST, PUT, DELETE)</span>
+      </div>
+      <p class="section-desc">
+        O protocolo HTTP define <strong>verbos</strong> para indicar o objetivo de cada requisição. Em aplicações web
+        com formulários HTML padrão, <code>GET</code> e <code>POST</code> são os mais utilizados.
+      </p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Método</th>
+            <th>Objetivo Principal</th>
+            <th>Origem Comum</th>
+            <th>Como Ler Dados no Python</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge-method badge-get">GET</span></td>
+            <td><strong>Consultar</strong> / Carregar página HTML ou dados sem alterar o servidor</td>
+            <td>Barra de endereços, cliques em <code>&lt;a href&gt;</code>, buscas</td>
+            <td><code>request.args.get('q')</code></td>
+          </tr>
+          <tr>
+            <td><span class="badge-method badge-post">POST</span></td>
+            <td><strong>Criar</strong> / Processar formulário de envio (inserir novo produto, login)</td>
+            <td>Formulários <code>&lt;form method="post"&gt;</code> ou <code>fetch()</code></td>
+            <td><code>request.form.get('nome')</code> ou <code>request.get_json()</code></td>
+          </tr>
+          <tr>
+            <td><span class="badge-method badge-put">PUT / PATCH</span></td>
+            <td><strong>Atualizar</strong> dados existentes</td>
+            <td>APIs AJAX com <code>fetch()</code></td>
+            <td><code>request.get_json()</code></td>
+          </tr>
+          <tr>
+            <td><span class="badge-method badge-delete">DELETE</span></td>
+            <td><strong>Excluir</strong> um registro</td>
+            <td>Formulários com POST ou APIs <code>fetch()</code></td>
+            <td>Parâmetro na URL ou <code>request.form</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4 style="color: var(--accent-blue); margin: 24px 0 8px;">Exemplos Práticos no TechStock</h4>
+
+      <!-- Exemplo GET -->
+      <div class="code-block">
+        <div class="code-header">
+          <span>Exemplo 1: Rota GET com Filtro de Busca (Query Params)</span>
+          <span class="code-lang">Python</span>
+        </div>
+        <pre><code><span class="fn">@front_bp.route</span>(<span class="str">"/produtos"</span>, methods=[<span class="str">"GET"</span>])
+<span class="kw">def</span> <span class="fn">produtos</span>():
+    <span class="cm"># Captura ?q=Memoria da URL: /produtos?q=Memoria</span>
+    termo = request.args.get(<span class="str">"q"</span>, <span class="str">""</span>).strip()
+    
+    db = database.get_connection()
+    <span class="kw">if</span> termo:
+        produtos = db.execute(
+            <span class="str">"SELECT * FROM produtos WHERE nome LIKE ? OR sku LIKE ?"</span>, 
+            (f<span class="str">"%{termo}%"</span>, f<span class="str">"%{termo}%"</span>)
+        ).fetchall()
+    <span class="kw">else</span>:
+        produtos = db.execute(<span class="str">"SELECT * FROM produtos"</span>).fetchall()
+        
+    <span class="kw">return</span> render_template(<span class="str">"produtos.html"</span>, produtos=produtos, termo=termo)
+</code></pre>
+      </div>
+
+      <!-- Exemplo POST -->
+      <div class="code-block">
+        <div class="code-header">
+          <span>Exemplo 2: Rota POST para Salvar Formulário de Novo Produto</span>
+          <span class="code-lang">Python</span>
+        </div>
+        <pre><code><span class="fn">@front_bp.route</span>(<span class="str">"/produtos/novo"</span>, methods=[<span class="str">"POST"</span>])
+<span class="kw">def</span> <span class="fn">novo_produto</span>():
+    <span class="cm"># Pega os valores enviados pelo formulário HTML (atributos name="...")</span>
+    nome = request.form.get(<span class="str">"nome"</span>)
+    sku = request.form.get(<span class="str">"sku"</span>)
+    categoria_id = request.form.get(<span class="str">"categoria_id"</span>)
+    quantidade = request.form.get(<span class="str">"quantidade"</span>, <span class="num">0</span>)
+    
+    db = database.get_connection()
+    db.execute(
+        <span class="str">"INSERT INTO produtos (nome, sku, categoria_id, quantidade) VALUES (?, ?, ?, ?)"</span>,
+        (nome, sku, categoria_id, quantidade)
+    )
+    db.commit() <span class="cm"># Não esqueça do commit ao alterar dados!</span>
+
+    flash(<span class="str">"Produto cadastrado com sucesso!"</span>, <span class="str">"success"</span>)
+    <span class="kw">return</span> redirect(url_for(<span class="str">"front.produtos"</span>))
+</code></pre>
+      </div>
+
+      <!-- Exemplo Rota com Parâmetro de URL -->
+      <div class="code-block">
+        <div class="code-header">
+          <span>Exemplo 3: Rota com Parâmetro Dinâmico de URL (&lt;int:id&gt;)</span>
+          <span class="code-lang">Python</span>
+        </div>
+        <pre><code><span class="fn">@front_bp.route</span>(<span class="str">"/produtos/&lt;int:produto_id&gt;/excluir"</span>, methods=[<span class="str">"POST"</span>])
+<span class="kw">def</span> <span class="fn">excluir_produto</span>(produto_id):
+    db = database.get_connection()
+    db.execute(<span class="str">"DELETE FROM produtos WHERE id = ?"</span>, (produto_id,))
+    db.commit()
+
+    flash(f<span class="str">"Produto #{produto_id} excluído com sucesso!"</span>, <span class="str">"info"</span>)
+    <span class="kw">return</span> redirect(url_for(<span class="str">"front.produtos"</span>))
+</code></pre>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 3: ACESSO AO BANCO DE DADOS (SQLite) -->
+    <section class="section">
+      <div class="section-title">
+        <span class="section-num">2</span>
+        <span>Como Conectar e Chamar o Banco de Dados</span>
+      </div>
+      <p class="section-desc">
+        O TechStock centraliza a conexão no módulo <code>app.database.database</code>. A conexão é aberta sob demanda
+        por requisição e fechada automaticamente.
+      </p>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span>Padrão Oficial de Consultas SQL</span>
+          <span class="code-lang">Python</span>
+        </div>
+        <pre><code><span class="kw">from</span> app.database <span class="kw">import</span> database
+
+<span class="kw">def</span> <span class="fn">minha_funcao_back</span>():
+    <span class="cm"># 1. Obtém a conexão ativa com o SQLite</span>
+    db = database.get_connection()
+
+    <span class="cm"># 2. SELECT retornando 1 registro (fetchone)</span>
+    total = db.execute(<span class="str">"SELECT COUNT(*) AS total FROM produtos"</span>).fetchone()[<span class="str">"total"</span>]
+
+    <span class="cm"># 3. SELECT retornando múltiplos registros (fetchall)</span>
+    cursor = db.execute(<span class="str">"SELECT id, nome, quantidade FROM produtos WHERE quantidade <= 5"</span>)
+    itens_baixos = cursor.fetchall()  <span class="cm"># cada item pode ser acessado como dicionário: item["nome"]</span>
+
+    <span class="cm"># 4. INSERT / UPDATE / DELETE sempre parametrizados com (?) para evitar SQL Injection</span>
+    db.execute(
+        <span class="str">"UPDATE produtos SET quantidade = ? WHERE id = ?"</span>, 
+        (10, 1)
+    )
+    db.commit() <span class="cm"># Salva a transação</span>
+</code></pre>
+      </div>
+
+      <div class="callout warning">
+        <div class="callout-title">⚠️ Regra de Segurança Crítica: SQL Injection</div>
+        <strong>NUNCA</strong> concatene variáveis com strings formatadas (ex:
+        <code>f"SELECT ... WHERE id = {meu_id}"</code>). Sempre utilize a interrogação <code>?</code> e passe os
+        parâmetros em uma tupla: <code>db.execute("... WHERE id = ?", (meu_id,))</code>.
+      </div>
+    </section>
+
+    <!-- SEÇÃO 4: CONEXÃO COM OS TEMPLATES HTML (JINJA2) -->
+    <section class="section">
+      <div class="section-title">
+        <span class="section-num">3</span>
+        <span>Como o Back-End Alimenta o Front-End (Jinja2)</span>
+      </div>
+      <p class="section-desc">
+        A função <code>render_template(arquivo, **contexto)</code> envia variáveis do Python para o HTML.
+      </p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <h4 style="color: var(--back-color); margin-bottom: 8px;">⚙️ No Back-End (Python)</h4>
+          <div class="code-block">
+            <div class="code-header"><span>main_controller.py</span></div>
+            <pre><code><span class="fn">@front_bp.route</span>(<span class="str">"/dashboard"</span>)
+<span class="kw">def</span> <span class="fn">dashboard</span>():
+    total = <span class="num">150</span>
+    usuario = <span class="str">"Thiago"</span>
+    produtos = [
+        {<span class="str">"nome"</span>: <span class="str">"SSD"</span>, <span class="str">"qtd"</span>: <span class="num">9</span>}
+    ]
+
+    <span class="kw">return</span> render_template(
+        <span class="str">"dashboard.html"</span>,
+        total_produtos=total,
+        usuario_logado=usuario,
+        produtos=produtos
+    )</code></pre>
+          </div>
+        </div>
+
+        <div>
+          <h4 style="color: var(--front-color); margin-bottom: 8px;">🎨 No Front-End (Jinja2 / HTML)</h4>
+          <div class="code-block">
+            <div class="code-header"><span>dashboard.html</span></div>
+            <pre><code><span class="cm">&lt;!-- Imprime texto simples --&gt;</span>
+&lt;h1&gt;Olá, <span class="jinja">{{ usuario_logado }}</span>&lt;/h1&gt;
+&lt;p&gt;Total: <span class="jinja">{{ total_produtos }}</span>&lt;/p&gt;
+
+<span class="cm">&lt;!-- Laço de repetição --&gt;</span>
+&lt;ul&gt;
+<span class="jinja">{% for p in produtos %}</span>
+  &lt;li&gt;<span class="jinja">{{ p.nome }}</span>: <span class="jinja">{{ p.qtd }}</span> un&lt;/li&gt;
+<span class="jinja">{% endfor %}</span>
+&lt;/ul&gt;</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 5: CONTRATO DE INTEGRAÇÃO DAS TELAS -->
+    <section class="section">
+      <div class="section-title">
+        <span class="section-num">4</span>
+        <span>Contrato de Integração das Telas do TechStock</span>
+      </div>
+      <p class="section-desc">
+        Tabela de referência com todas as rotas do sistema para alinhamento entre o Thiago e o Maurício:
+      </p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Endpoint / Rota</th>
+            <th>Método</th>
+            <th>Parâmetros Esperados</th>
+            <th>Template / Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>/dashboard</code></td>
+            <td><span class="badge-method badge-get">GET</span></td>
+            <td>Nenhum</td>
+            <td><code>dashboard.html</code> (recebe KPIs e gráficos)</td>
+          </tr>
+          <tr>
+            <td><code>/produtos</code></td>
+            <td><span class="badge-method badge-get">GET</span></td>
+            <td><code>?q=texto_busca</code></td>
+            <td><code>produtos.html</code> (recebe lista <code>produtos</code>)</td>
+          </tr>
+          <tr>
+            <td><code>/produtos/novo</code></td>
+            <td><span class="badge-method badge-post">POST</span></td>
+            <td><code>nome</code>, <code>sku</code>, <code>categoria_id</code>, <code>rua_id</code>, <code>qtd</code>
+            </td>
+            <td>Salva no SQLite e redireciona para <code>/produtos</code></td>
+          </tr>
+          <tr>
+            <td><code>/produtos/&lt;id&gt;/editar</code></td>
+            <td><span class="badge-method badge-post">POST</span></td>
+            <td><code>nome</code>, <code>estoque_min</code>, <code>estoque_max</code></td>
+            <td>Atualiza no SQLite e redireciona</td>
+          </tr>
+          <tr>
+            <td><code>/produtos/&lt;id&gt;/excluir</code></td>
+            <td><span class="badge-method badge-post">POST</span></td>
+            <td>ID via URL</td>
+            <td>Exclui registro e redireciona</td>
+          </tr>
+          <tr>
+            <td><code>/ruas</code></td>
+            <td><span class="badge-method badge-get">GET</span></td>
+            <td>Nenhum</td>
+            <td><code>ruas.html</code> (recebe lista <code>ruas</code>)</td>
+          </tr>
+          <tr>
+            <td><code>/entradas</code></td>
+            <td><span class="badge-method badge-get">GET</span></td>
+            <td>Nenhum</td>
+            <td><code>entradas.html</code> (recebe produtos e histórico)</td>
+          </tr>
+          <tr>
+            <td><code>/saidas</code></td>
+            <td><span class="badge-method badge-get">GET</span></td>
+            <td>Nenhum</td>
+            <td><code>saidas.html</code> (recebe produtos e histórico)</td>
+          </tr>
+          <tr>
+            <td><code>/api/produtos/&lt;id&gt;/estoque</code></td>
+            <td><span class="badge-method badge-get">GET</span></td>
+            <td>ID via URL</td>
+            <td>Retorna JSON com categoria e locais para o JS</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+
+    <!-- Footer -->
+    <footer class="footer">
+      TechStock WMS &copy; 2026 — Documentação Técnica Interna. Arquivo gerado em
+      <code>app/docs/guia_desenvolvimento_blueprints.html</code>.
+    </footer>
+
+  </div>
+
+</body>
+
+</html>
