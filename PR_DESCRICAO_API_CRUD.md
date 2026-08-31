@@ -27,10 +27,10 @@ Esta branch (`feat/api-crud-mauricio`) organiza a camada de API do TechStock (`a
 * **`GET, POST, PUT, DELETE /api/categorias`** — CRUD completo na tabela `categorias`.
 * **`GET, POST, PUT, DELETE /api/produtos`** — CRUD completo na tabela `produtos` (com preço em centavos).
 * **`GET, POST, PUT, DELETE /api/usuarios`** — Listagem e gestão de usuários.
+* **`GET, POST /api/movimentacoes`** (e alias `/api/movimento`) — Consulta e registro de entradas e saídas de estoque.
 
 ### ⚠️ Endpoints com Ajustes Pendentes
 * **`/api/enderecos-estoque`** ➔ Adequar queries para apontar para as tabelas **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
-* **`/api/movimento`** ➔ Renomear chamadas SQL para a tabela oficial **`movimentacoes`** (no plural).
 * **`/api/estoque-local`** ➔ Mapear para o saldo físico direto de `produtos` alocados nos `drives`.
 * **`/api/empresas` e `/api/fornecedores`** ➔ Avaliar a necessidade dessas rotas, pois essas tabelas não fazem parte do fluxo principal de movimentações do galpão no MVP.
 

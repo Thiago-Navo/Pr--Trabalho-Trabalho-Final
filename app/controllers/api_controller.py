@@ -517,32 +517,37 @@ def registrar_estoque_local():
 
 
 # ==================================================
-# 8. MOVIMENTO (HISTÓRICO / REGISTRO)
+# 8. MOVIMENTAÇÕES (HISTÓRICO / REGISTRO)
 # ==================================================
+@api_bp.route('/movimentacoes', methods=['GET'])
 @api_bp.route('/movimento', methods=['GET'])
-def listar_movimento():
+def listar_movimentacoes():
     conn = database.get_connection()
-    movimento = conn.execute('SELECT * FROM movimento').fetchall()
-    conn.close()
-    return jsonify([dict(row) for row in movimento]), 200
+    movimentacoes = conn.execute('SELECT * FROM movimentacoes ORDER BY criado_em DESC').fetchall()
+    return jsonify([dict(row) for row in movimentacoes]), 200
 
+@api_bp.route('/movimentacoes', methods=['POST'])
 @api_bp.route('/movimento', methods=['POST'])
-def registrar_movimento():
+def registrar_movimentacao():
     dados = request.get_json() or {}
     produto_id = dados.get('produto_id')
-    tipo = dados.get('tipo')
+    tipo = str(dados.get('tipo', '')).upper()
     quantidade = dados.get('quantidade')
+    observacao = dados.get('observacao')
+    usuario_id = dados.get('usuario_id', 1)
 
     if not produto_id or not tipo or not quantidade:
         return jsonify({"erro": "Campos 'produto_id', 'tipo' e 'quantidade' são obrigatórios"}), 400
 
+    if tipo not in ('ENTRADA', 'SAIDA'):
+        return jsonify({"erro": "O campo 'tipo' deve ser 'ENTRADA' ou 'SAIDA'"}), 400
+
     conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO movimento (produto_id, tipo, quantidade)
-        VALUES (?, ?, ?)
-    ''', (produto_id, tipo, quantidade))
+        INSERT INTO movimentacoes (produto_id, usuario_id, tipo, quantidade, observacao)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (produto_id, usuario_id, tipo, quantidade, observacao))
     conn.commit()
     novo_id = cursor.lastrowid
-    conn.close()
     return jsonify({"mensagem": "Movimentação registrada com sucesso", "id": novo_id}), 201

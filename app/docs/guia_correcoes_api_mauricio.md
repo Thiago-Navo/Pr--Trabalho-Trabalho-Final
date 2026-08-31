@@ -49,10 +49,10 @@ O banco SQLite ativo possui exatamente as seguintes 6 tabelas:
 - `GET, POST, PUT, DELETE /api/categorias` — CRUD completo.
 - `GET, POST, PUT, DELETE /api/produtos` — CRUD completo (suporta preço em centavos e quantidade).
 - `GET, POST, PUT, DELETE /api/usuarios` — Gestão de colaboradores.
+- `GET, POST /api/movimentacoes` (e alias `/api/movimento`) — Consulta e registro de entradas e saídas de estoque.
 
 ### ⚠️ Rotas que Precisam de Ajuste de Nomenclatura SQL
 - **`/api/enderecos-estoque`**: Mapear as consultas para as tabelas oficiais **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
-- **`/api/movimento`**: Ajustar o nome da tabela nas queries SQL para **`movimentacoes`** (no plural).
 - **`/api/estoque-local`**: O saldo físico no WMS fica diretamente em `produtos.quantidade` associado a `produtos.drive_id`.
 - **`/api/empresas` e `/api/fornecedores`**: Avaliar remoção ou simplificação, pois o foco central do MVP é o controle físico de estoque.
 
