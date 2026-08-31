@@ -21,14 +21,14 @@ def consulta_cep(cep):
 # ==================================================
 @api_bp.route('/empresas', methods=['GET'])
 def listar_empresas():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     empresas = conn.execute('SELECT * FROM empresas').fetchall()
     conn.close()
     return jsonify([dict(row) for row in empresas]), 200
 
 @api_bp.route('/empresas/<int:id>', methods=['GET'])
 def obter_empresa(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     empresa = conn.execute('SELECT * FROM empresas WHERE id = ?', (id,)).fetchone()
     conn.close()
     if not empresa:
@@ -51,7 +51,7 @@ def criar_empresa():
         if "erro" in endereco:
             return jsonify(endereco), 400
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute('''
@@ -78,7 +78,7 @@ def criar_empresa():
 @api_bp.route('/empresas/<int:id>', methods=['PUT'])
 def atualizar_empresa(id):
     dados = request.get_json() or {}
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     empresa = conn.execute('SELECT * FROM empresas WHERE id = ?', (id,)).fetchone()
 
     if not empresa:
@@ -113,7 +113,7 @@ def atualizar_empresa(id):
 
 @api_bp.route('/empresas/<int:id>', methods=['DELETE'])
 def deletar_empresa(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     res = conn.execute('DELETE FROM empresas WHERE id = ?', (id,))
     conn.commit()
     conn.close()
@@ -127,14 +127,14 @@ def deletar_empresa(id):
 # ==================================================
 @api_bp.route('/fornecedores', methods=['GET'])
 def listar_fornecedores():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     fornecedores = conn.execute('SELECT * FROM fornecedores').fetchall()
     conn.close()
     return jsonify([dict(row) for row in fornecedores]), 200
 
 @api_bp.route('/fornecedores/<int:id>', methods=['GET'])
 def obter_fornecedor(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     fornecedor = conn.execute('SELECT * FROM fornecedores WHERE id = ?', (id,)).fetchone()
     conn.close()
     if not fornecedor:
@@ -158,7 +158,7 @@ def criar_fornecedor():
         if "erro" in endereco:
             return jsonify(endereco), 400
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute('''
@@ -185,7 +185,7 @@ def criar_fornecedor():
 @api_bp.route('/fornecedores/<int:id>', methods=['PUT'])
 def atualizar_fornecedor(id):
     dados = request.get_json() or {}
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     fornecedor = conn.execute('SELECT * FROM fornecedores WHERE id = ?', (id,)).fetchone()
 
     if not fornecedor:
@@ -221,7 +221,7 @@ def atualizar_fornecedor(id):
 
 @api_bp.route('/fornecedores/<int:id>', methods=['DELETE'])
 def deletar_fornecedor(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     res = conn.execute('DELETE FROM fornecedores WHERE id = ?', (id,))
     conn.commit()
     conn.close()
@@ -235,14 +235,14 @@ def deletar_fornecedor(id):
 # ==================================================
 @api_bp.route('/produtos', methods=['GET'])
 def listar_produtos():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     produtos = conn.execute('SELECT * FROM produtos').fetchall()
     conn.close()
     return jsonify([dict(row) for row in produtos]), 200
 
 @api_bp.route('/produtos/<int:id>', methods=['GET'])
 def obter_produto(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     produto = conn.execute('SELECT * FROM produtos WHERE id = ?', (id,)).fetchone()
     conn.close()
     if not produto:
@@ -260,7 +260,7 @@ def criar_produto():
     if not nome:
         return jsonify({"erro": "O campo 'nome' é obrigatório"}), 400
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO produtos (nome, preco, quantidade, categoria_id)
@@ -275,7 +275,7 @@ def criar_produto():
 @api_bp.route('/produtos/<int:id>', methods=['PUT'])
 def atualizar_produto(id):
     dados = request.get_json() or {}
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     produto = conn.execute('SELECT * FROM produtos WHERE id = ?', (id,)).fetchone()
 
     if not produto:
@@ -299,7 +299,7 @@ def atualizar_produto(id):
 
 @api_bp.route('/produtos/<int:id>', methods=['DELETE'])
 def deletar_produto(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     res = conn.execute('DELETE FROM produtos WHERE id = ?', (id,))
     conn.commit()
     conn.close()
@@ -313,14 +313,14 @@ def deletar_produto(id):
 # ==================================================
 @api_bp.route('/categorias', methods=['GET'])
 def listar_categorias():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     categorias = conn.execute('SELECT * FROM categorias').fetchall()
     conn.close()
     return jsonify([dict(row) for row in categorias]), 200
 
 @api_bp.route('/categorias/<int:id>', methods=['GET'])
 def obter_categoria(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     cat = conn.execute('SELECT * FROM categorias WHERE id = ?', (id,)).fetchone()
     conn.close()
     if not cat:
@@ -334,7 +334,7 @@ def criar_categoria():
     if not nome:
         return jsonify({"erro": "O campo 'nome' é obrigatório"}), 400
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('INSERT INTO categorias (nome) VALUES (?)', (nome,))
     conn.commit()
@@ -345,7 +345,7 @@ def criar_categoria():
 @api_bp.route('/categorias/<int:id>', methods=['PUT'])
 def atualizar_categoria(id):
     dados = request.get_json() or {}
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     cat = conn.execute('SELECT * FROM categorias WHERE id = ?', (id,)).fetchone()
     if not cat:
         conn.close()
@@ -358,7 +358,7 @@ def atualizar_categoria(id):
 
 @api_bp.route('/categorias/<int:id>', methods=['DELETE'])
 def deletar_categoria(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     res = conn.execute('DELETE FROM categorias WHERE id = ?', (id,))
     conn.commit()
     conn.close()
@@ -372,14 +372,14 @@ def deletar_categoria(id):
 # ==================================================
 @api_bp.route('/usuarios', methods=['GET'])
 def listar_usuarios():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     usuarios = conn.execute('SELECT id, nome, email, cargo FROM usuarios').fetchall()
     conn.close()
     return jsonify([dict(row) for row in usuarios]), 200
 
 @api_bp.route('/usuarios/<int:id>', methods=['GET'])
 def obter_usuario(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     usuario = conn.execute('SELECT id, nome, email, cargo FROM usuarios WHERE id = ?', (id,)).fetchone()
     conn.close()
     if not usuario:
@@ -397,7 +397,7 @@ def criar_usuario():
     if not nome or not email or not senha:
         return jsonify({"erro": "Campos 'nome', 'email' e 'senha' são obrigatórios"}), 400
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute('''
@@ -417,7 +417,7 @@ def criar_usuario():
 @api_bp.route('/usuarios/<int:id>', methods=['PUT'])
 def atualizar_usuario(id):
     dados = request.get_json() or {}
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     usr = conn.execute('SELECT * FROM usuarios WHERE id = ?', (id,)).fetchone()
     if not usr:
         conn.close()
@@ -440,7 +440,7 @@ def atualizar_usuario(id):
 
 @api_bp.route('/usuarios/<int:id>', methods=['DELETE'])
 def deletar_usuario(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     res = conn.execute('DELETE FROM usuarios WHERE id = ?', (id,))
     conn.commit()
     conn.close()
@@ -454,7 +454,7 @@ def deletar_usuario(id):
 # ==================================================
 @api_bp.route('/enderecos-estoque', methods=['GET'])
 def listar_enderecos_estoque():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     enderecos = conn.execute('SELECT * FROM endereco_estoque').fetchall()
     conn.close()
     return jsonify([dict(row) for row in enderecos]), 200
@@ -465,7 +465,7 @@ def criar_endereco_estoque():
     corredor = dados.get('corredor')
     prateleira = dados.get('prateleira')
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('INSERT INTO endereco_estoque (corredor, prateleira) VALUES (?, ?)', (corredor, prateleira))
     conn.commit()
@@ -475,7 +475,7 @@ def criar_endereco_estoque():
 
 @api_bp.route('/enderecos-estoque/<int:id>', methods=['DELETE'])
 def deletar_endereco_estoque(id):
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     res = conn.execute('DELETE FROM endereco_estoque WHERE id = ?', (id,))
     conn.commit()
     conn.close()
@@ -489,7 +489,7 @@ def deletar_endereco_estoque(id):
 # ==================================================
 @api_bp.route('/estoque-local', methods=['GET'])
 def listar_estoque_local():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     estoque = conn.execute('SELECT * FROM estoque_local').fetchall()
     conn.close()
     return jsonify([dict(row) for row in estoque]), 200
@@ -504,7 +504,7 @@ def registrar_estoque_local():
     if not produto_id or not empresa_id:
         return jsonify({"erro": "Campos 'produto_id' e 'empresa_id' são obrigatórios"}), 400
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO estoque_local (produto_id, empresa_id, quantidade)
@@ -521,7 +521,7 @@ def registrar_estoque_local():
 # ==================================================
 @api_bp.route('/movimento', methods=['GET'])
 def listar_movimento():
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     movimento = conn.execute('SELECT * FROM movimento').fetchall()
     conn.close()
     return jsonify([dict(row) for row in movimento]), 200
@@ -536,7 +536,7 @@ def registrar_movimento():
     if not produto_id or not tipo or not quantidade:
         return jsonify({"erro": "Campos 'produto_id', 'tipo' e 'quantidade' são obrigatórios"}), 400
 
-    conn = database.get_db_connection()
+    conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO movimento (produto_id, tipo, quantidade)

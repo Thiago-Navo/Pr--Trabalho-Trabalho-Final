@@ -1,6 +1,12 @@
 import sqlite3
+import sys
+import os
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
+
+# Garante que a raiz do projeto esteja no sys.path ao rodar como script direto
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from app.database import database  # Importa a instância centralizada
 
 def get_db():
@@ -26,19 +32,23 @@ def init_db(conn):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            senha_hash TEXT NOT NULL,
-            cargo TEXT NOT NULL
+            senha TEXT,
+            senha_hash TEXT,
+            cargo TEXT DEFAULT 'Operador'
         );
 
         CREATE TABLE categorias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT UNIQUE NOT NULL
+            nome TEXT UNIQUE NOT NULL,
+            descritivo TEXT
         );
 
         CREATE TABLE ruas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
-            descricao TEXT
+            descricao TEXT,
+            corredor TEXT,
+            prateleira TEXT
         );
 
         CREATE TABLE drives (
@@ -53,8 +63,9 @@ def init_db(conn):
         CREATE TABLE produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
-            sku TEXT UNIQUE NOT NULL,
-            categoria_id INTEGER NOT NULL,
+            sku TEXT UNIQUE,
+            preco INTEGER DEFAULT 0,
+            categoria_id INTEGER,
             drive_id INTEGER,
             quantidade INTEGER NOT NULL DEFAULT 0,
             quantidade_minima INTEGER NOT NULL DEFAULT 0,
@@ -67,7 +78,7 @@ def init_db(conn):
         CREATE TABLE movimentacoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             produto_id INTEGER NOT NULL,
-            usuario_id INTEGER NOT NULL,
+            usuario_id INTEGER DEFAULT 1,
             tipo TEXT CHECK(tipo IN ('ENTRADA', 'SAIDA')) NOT NULL,
             quantidade INTEGER NOT NULL,
             observacao TEXT,
@@ -207,6 +218,7 @@ def seed():
         (
             "Memória RAM 8GB DDR4 3200MHz",
             "SKU-0231",
+            14990,
             cat_map["Memória"],
             drive_map["A1"],
             148,
@@ -217,6 +229,7 @@ def seed():
         (
             "SSD NVMe 512GB",
             "SKU-0119",
+            22990,
             cat_map["Armazenamento"],
             drive_map["B2"],
             9,
@@ -227,6 +240,7 @@ def seed():
         (
             "Fonte ATX 550W 80 Plus",
             "SKU-0087",
+            28990,
             cat_map["Fonte"],
             drive_map["D1"],
             0,
@@ -237,6 +251,7 @@ def seed():
         (
             "Placa-mãe B450M Gaming",
             "SKU-0054",
+            45990,
             cat_map["Placa-mãe"],
             drive_map["C2"],
             31,
@@ -247,6 +262,7 @@ def seed():
         (
             "Cooler Master Hyper 212",
             "SKU-0176",
+            17990,
             cat_map["Refrigeração"],
             drive_map["A6"],
             17,
@@ -257,6 +273,7 @@ def seed():
         (
             "Processador Ryzen 5 5600",
             "SKU-0212",
+            84990,
             cat_map["Processador"],
             drive_map["A4"],
             6,
@@ -268,8 +285,8 @@ def seed():
 
     cursor.executemany(
         """INSERT INTO produtos 
-           (nome, sku, categoria_id, drive_id, quantidade, quantidade_minima, descricao, atualizado_em) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+           (nome, sku, preco, categoria_id, drive_id, quantidade, quantidade_minima, descricao, atualizado_em) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         produtos,
     )
 
