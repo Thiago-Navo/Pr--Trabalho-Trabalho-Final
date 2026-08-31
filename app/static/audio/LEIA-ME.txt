@@ -1,0 +1,18 @@
+Coloque aqui os arquivos de música de fundo (mp3).
+
+O player agora toca uma playlist configurável, com capa, título, artista,
+botão de próxima/anterior e pausar. Para configurar suas faixas, edite:
+
+    static/js/playlist.js
+
+Cada faixa no array PLAYLIST precisa apontar para um arquivo aqui dentro,
+por exemplo:
+
+    { titulo: "Nome da música", artista: "Artista", src: "/static/audio/faixa1.mp3", capa: "/static/img/covers/capa1.jpg" }
+
+O campo "capa" é opcional — se você não tiver uma imagem de capa, deixe
+como "" que o player usa a capa genérica padrão
+(static/img/covers/default-cover.svg).
+
+Não incluímos nenhum arquivo de áudio ou capa de álbum real por padrão
+porque costumam ter direitos autorais — use faixas suas ou royalty-free.

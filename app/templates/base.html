@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block titulo %}Sistema de Estoque{% endblock %}</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+  <!-- Aplica o tema salvo ANTES de renderizar, para não piscar tema errado -->
+  <script>
+    (function () {
+      const salvo = localStorage.getItem("estoque-tema");
+      const tema = salvo === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", tema);
+      document.documentElement.setAttribute("data-bs-theme", tema);
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-mark"><i class="bi bi-hdd-stack"></i></span>
+        Techstock
+      </div>
+      <ul class="sidebar-nav">
+        <li class="nav-section">Visão geral</li>
+        <li><a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}"><i class="bi bi-grid-1x2"></i> Dashboard</a></li>
+        <li class="nav-section">Estoque</li>
+        <li><a href="{{ url_for('produtos') }}" class="{{ 'active' if request.endpoint == 'produtos' }}"><i class="bi bi-box-seam"></i> Produtos</a></li>
+        <li><a href="{{ url_for('ruas') }}" class="{{ 'active' if request.endpoint == 'ruas' }}"><i class="bi bi-signpost-split"></i> Ruas</a></li>
+        <li><a href="{{ url_for('movimentacoes') }}" class="{{ 'active' if request.endpoint == 'movimentacoes' }}"><i class="bi bi-arrow-left-right"></i> Movimentações</a></li>
+        <li><a href="{{ url_for('entradas') }}" class="{{ 'active' if request.endpoint == 'entradas' }}"><i class="bi bi-box-arrow-in-down"></i> Entradas</a></li>
+        <li><a href="{{ url_for('saidas') }}" class="{{ 'active' if request.endpoint == 'saidas' }}"><i class="bi bi-box-arrow-up"></i> Saídas</a></li>
+        <li class="nav-section">Conta</li>
+        {% if papel_logado == 'admin' %}
+        <li><a href="{{ url_for('cadastro') }}" class="{{ 'active' if request.endpoint == 'cadastro' }}"><i class="bi bi-person-plus"></i> Novo usuário</a></li>
+        {% endif %}
+        <li><a href="{{ url_for('logout') }}" data-full-reload><i class="bi bi-box-arrow-right"></i> Sair ({{ usuario_logado }})</a></li>
+      </ul>
+
+      <!-- Player de música de fundo -->
+      <div class="music-player">
+        <div class="music-cover-wrap">
+          <img id="capaMusica" class="music-cover" src="{{ url_for('static', filename='img/covers/default-cover.svg') }}" alt="Capa da música">
+        </div>
+        <div class="music-info">
+          <div class="music-titulo" id="tituloMusica">Nenhuma faixa</div>
+          <div class="music-artista" id="artistaMusica">Adicione músicas em playlist.js</div>
+        </div>
+        <div class="music-controls">
+          <button id="btnAnterior" type="button" title="Faixa anterior"><i class="bi bi-skip-start-fill"></i></button>
+          <button id="btnMusica" class="play-pause" type="button" title="Tocar/pausar">
+            <i class="bi bi-play-fill" id="iconeMusica"></i>
+          </button>
+          <button id="btnProxima" type="button" title="Próxima faixa"><i class="bi bi-skip-end-fill"></i></button>
+        </div>
+        <div class="music-volume">
+          <button id="btnVolumeBaixo" type="button" title="Diminuir volume"><i class="bi bi-volume-down"></i></button>
+          <div class="music-volume-track"><div class="music-volume-fill" id="volumeFill"></div></div>
+          <button id="btnVolumeAlto" type="button" title="Aumentar volume"><i class="bi bi-volume-up"></i></button>
+        </div>
+        <audio id="audioFundo" preload="none"></audio>
+      </div>
+
+      <div class="sidebar-foot">
+        Papel: <strong>{{ papel_logado }}</strong>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="btn-icon" data-sidebar-toggle aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        <div class="search-box" id="app-search">
+          {% block busca %}<span></span>{% endblock %}
+        </div>
+        <div class="topbar-right">
+          <button class="btn-icon" id="btnTema" title="Alternar tema claro/escuro">
+            <i class="bi bi-moon-stars" id="iconeTema"></i>
+          </button>
+          <div class="user-chip">
+            <div class="avatar">{{ (usuario_logado or '?')[:2] | upper }}</div>
+            <span>{{ usuario_logado }}</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content" id="app-content">
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+          {% if mensagens %}
+            <div class="flash-stack">
+              {% for categoria, msg in mensagens %}
+                <div class="flash-msg flash-{{ categoria }}">
+                  {{ msg }}
+                  <button type="button" class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        {% block conteudo %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal de confirmação de exclusão, compartilhado por todas as páginas.
+       Fica fora de #app-content de propósito: assim ele sobrevive às trocas
+       de página feitas pelo nav.js e não precisa ser reinicializado a cada
+       navegação. Quem quiser usar, é só marcar o <form> com a classe
+       "form-confirmar-exclusao" e (opcionalmente) os atributos
+       data-confirmar-titulo / data-confirmar-mensagem. -->
+  <div class="modal fade" id="modalConfirmarExclusao" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content confirm-modal-content">
+        <div class="confirm-modal-body">
+          <div class="confirm-modal-icon"><i class="bi bi-exclamation-triangle"></i></div>
+          <h5 class="confirm-modal-title" id="confirmarExclusaoTitulo">Confirmar exclusão</h5>
+          <p class="confirm-modal-texto" id="confirmarExclusaoTexto">Tem certeza que deseja excluir este item? Essa ação não pode ser desfeita.</p>
+        </div>
+        <div class="confirm-modal-footer">
+          <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn-danger-custom" id="btnConfirmarExclusao">
+            <i class="bi bi-trash"></i> Excluir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/playlist.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <!-- Scripts específicos de cada página (gráficos, formulários com JS,
+       etc). Ficam num container próprio para que nav.js consiga
+       localizá-los e reexecutá-los ao trocar de página sem recarregar
+       o documento inteiro. -->
+  <div id="app-scripts" hidden>{% block scripts %}{% endblock %}</div>
+  <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
+</body>
+</html>

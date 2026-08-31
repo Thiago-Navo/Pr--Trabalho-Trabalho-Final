@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block titulo %}Produtos — Sistema de Estoque{% endblock %}
+
+{% block busca %}
+  <i class="bi bi-search"></i>
+  <form method="get" action="{{ url_for('produtos') }}" style="display:flex; flex:1;">
+    <input type="text" name="q" value="{{ termo }}" placeholder="Pesquisar por nome, categoria ou SKU...">
+  </form>
+{% endblock %}
+
+{% block conteudo %}
+  <div class="page-header">
+    <div>
+      <h1>Produtos</h1>
+      <p>Cadastre, pesquise e acompanhe os componentes do estoque</p>
+    </div>
+    {% if tem_ruas %}
+    <button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#modalProduto">
+      <i class="bi bi-plus-lg"></i> Novo produto
+    </button>
+    {% else %}
+    <a href="{{ url_for('ruas') }}" class="btn-primary-custom">
+      <i class="bi bi-signpost-split"></i> Cadastre uma rua primeiro
+    </a>
+    {% endif %}
+  </div>
+
+  {% if not tem_ruas %}
+  <div class="flash-msg flash-warning" style="margin-bottom:16px;">
+    Você precisa cadastrar ao menos uma rua antes de criar produtos.
+  </div>
+  {% endif %}
+
+  <div class="card-panel">
+    <div class="card-panel-head">
+      <h2>Todos os produtos</h2>
+      <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ produtos|length }} produto(s)</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table-custom">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Categoria</th>
+            <th>Localização</th>
+            <th>Nível de estoque</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in produtos %}
+          {% set max_val = p.estoque_max if p.estoque_max else 1 %}
+          {% set pct = ((p.qtd_total / max_val) * 100) | round | int %}
+          {% set pct = 100 if pct > 100 else pct %}
+          {% set status = 'low' if p.qtd_total <= p.estoque_min else ('warning' if p.qtd_total <= p.estoque_min * 1.5 else 'ok') %}
+          <tr>
+            <td>
+              <div style="font-weight:600;">{{ p.nome }}</div>
+              <div class="sku">{{ p.sku }}</div>
+            </td>
+            <td>{{ p.categoria }}</td>
+            <td style="font-size:0.82rem;">
+              {% for loc in localizacoes.get(p.id, []) %}
+                <div>{{ loc.nome }}: <strong>{{ loc.quantidade }}</strong></div>
+              {% else %}
+                <span style="color:var(--color-text-muted);">sem estoque</span>
+              {% endfor %}
+            </td>
+            <td>
+              <div class="stock-level {{ 'is-low' if status == 'low' else ('is-warning' if status == 'warning' else '') }}">
+                <div class="bar-track"><div class="bar-fill" style="width:{{ pct }}%"></div></div>
+                <span class="qtd">{{ p.qtd_total }}/{{ p.estoque_max }}</span>
+              </div>
+            </td>
+            <td>
+              {% if status == 'low' %}
+                <span class="badge-tag danger">Estoque baixo</span>
+              {% elif status == 'warning' %}
+                <span class="badge-tag warning">Atenção</span>
+              {% else %}
+                <span class="badge-tag ok">Normal</span>
+              {% endif %}
+            </td>
+            <td class="row-actions">
+              {% if papel_logado == 'admin' %}
+              <button type="button" title="Editar" class="btn-editar-produto"
+                      data-id="{{ p.id }}" data-nome="{{ p.nome }}" data-min="{{ p.estoque_min }}" data-max="{{ p.estoque_max }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="{{ url_for('excluir_produto', produto_id=p.id) }}"
+                    class="form-confirmar-exclusao" style="display:inline;"
+                    data-confirmar-titulo="Excluir produto"
+                    data-confirmar-mensagem="Tem certeza que deseja excluir “{{ p.nome }}”? Essa ação não pode ser desfeita.">
+                <button title="Excluir" type="submit"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center; color:var(--color-text-muted); padding:24px;">Nenhum produto encontrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if tem_ruas %}
+  <div class="modal fade" id="modalProduto" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content" style="border-radius:12px; border:none;">
+        <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
+          <h5 class="modal-title" style="font-family:var(--font-display);">Novo produto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form method="post" action="{{ url_for('novo_produto') }}">
+          <div class="modal-body">
+            <div class="form-field">
+              <label for="pNome">Nome do produto</label>
+              <input type="text" id="pNome" name="nome" required placeholder="Ex: Memória RAM DDR4 8GB">
+            </div>
+            <div class="form-field">
+              <label for="pSku">Código (SKU)</label>
+              <input type="text" id="pSku" name="sku" required placeholder="Ex: MEM-DDR4-8G">
+            </div>
+            <div class="form-field">
+              <label for="pCategoria">Categoria / tipo</label>
+              <input type="text" id="pCategoria" name="categoria" required placeholder="Ex: Memória RAM">
+            </div>
+            <div class="form-field">
+              <label for="pRua">Rua onde será guardado</label>
+              <select id="pRua" name="rua_id" required>
+                <option value="" disabled selected>Escolha a rua...</option>
+                {% for r in ruas %}
+                <option value="{{ r.id }}" data-tipo="{{ r.tipo or '' }}">
+                  {{ r.nome }}{{ ' — ' + r.tipo if r.tipo else ' — livre' }}
+                </option>
+                {% endfor %}
+              </select>
+              <p class="hint" id="avisoRua"></p>
+            </div>
+            <div class="row g-2">
+              <div class="col-4">
+                <div class="form-field"><label for="pQtd">Qtd. inicial</label><input type="number" id="pQtd" name="qtd" min="0" required></div>
+              </div>
+              <div class="col-4">
+                <div class="form-field"><label for="pMin">Estoque mín.</label><input type="number" id="pMin" name="estoque_min" min="0" required></div>
+              </div>
+              <div class="col-4">
+                <div class="form-field"><label for="pMax">Estoque máx.</label><input type="number" id="pMax" name="estoque_max" min="0" required></div>
+              </div>
+            </div>
+            <p class="hint">Uma rua só aceita um tipo de produto. Se ela já tiver categoria travada, você só pode guardar produtos dessa mesma categoria.</p>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-primary-custom">Salvar produto</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Modal de edição rápida (nome / mínimo / máximo) -->
+  <div class="modal fade" id="modalEditarProduto" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content" style="border-radius:12px; border:none;">
+        <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
+          <h5 class="modal-title" style="font-family:var(--font-display);">Editar produto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form id="formEditarProduto" method="post" action="">
+          <div class="modal-body">
+            <div class="form-field">
+              <label for="eNome">Nome do produto</label>
+              <input type="text" id="eNome" name="nome" required>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <div class="form-field"><label for="eMin">Estoque mín.</label><input type="number" id="eMin" name="estoque_min" min="0" required></div>
+              </div>
+              <div class="col-6">
+                <div class="form-field"><label for="eMax">Estoque máx.</label><input type="number" id="eMax" name="estoque_max" min="0" required></div>
+              </div>
+            </div>
+            <p class="hint">SKU e categoria não podem ser alterados por aqui, pois isso poderia quebrar a trava de tipo das ruas.</p>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-primary-custom">Salvar alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Avisa em tempo real qual categoria a rua escolhida já aceita
+  const selectRua = document.getElementById("pRua");
+  const inputCategoria = document.getElementById("pCategoria");
+  const aviso = document.getElementById("avisoRua");
+
+  function atualizarAvisoRua() {
+    if (!selectRua) return;
+    const opt = selectRua.selectedOptions[0];
+    const tipo = opt ? opt.dataset.tipo : "";
+    if (tipo) {
+      aviso.textContent = `Essa rua só aceita produtos do tipo "${tipo}".`;
+    } else {
+      aviso.textContent = "Essa rua está livre e vai travar no tipo do produto que você cadastrar.";
+    }
+  }
+  if (selectRua) {
+    selectRua.addEventListener("change", atualizarAvisoRua);
+  }
+
+  function abrirEdicaoProduto(id, nome, min, max) {
+    const form = document.getElementById("formEditarProduto");
+    form.action = `/produtos/${id}/editar`;
+    document.getElementById("eNome").value = nome;
+    document.getElementById("eMin").value = min;
+    document.getElementById("eMax").value = max;
+    new bootstrap.Modal(document.getElementById("modalEditarProduto")).show();
+  }
+
+  document.querySelectorAll(".btn-editar-produto").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      abrirEdicaoProduto(btn.dataset.id, btn.dataset.nome, Number(btn.dataset.min), Number(btn.dataset.max));
+    });
+  });
+</script>
+
+{% endblock %}
