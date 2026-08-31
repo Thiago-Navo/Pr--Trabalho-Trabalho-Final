@@ -26,6 +26,7 @@ def init_db(conn):
         DROP TABLE IF EXISTS drives;
         DROP TABLE IF EXISTS ruas;
         DROP TABLE IF EXISTS categorias;
+        DROP TABLE IF EXISTS fornecedores;
         DROP TABLE IF EXISTS usuarios;
 
         CREATE TABLE usuarios (
@@ -35,6 +36,19 @@ def init_db(conn):
             senha TEXT,
             senha_hash TEXT,
             cargo TEXT DEFAULT 'Operador'
+        );
+
+        CREATE TABLE fornecedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            cpf_cnpj TEXT UNIQUE NOT NULL,
+            telefone TEXT,
+            cep TEXT,
+            logradouro TEXT,
+            bairro TEXT,
+            cidade TEXT,
+            uf TEXT,
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE categorias (
@@ -66,12 +80,14 @@ def init_db(conn):
             sku TEXT UNIQUE,
             preco INTEGER DEFAULT 0,
             categoria_id INTEGER,
+            fornecedor_id INTEGER,
             drive_id INTEGER,
             quantidade INTEGER NOT NULL DEFAULT 0,
             quantidade_minima INTEGER NOT NULL DEFAULT 0,
             descricao TEXT,
             atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (categoria_id) REFERENCES categorias (id),
+            FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id),
             FOREIGN KEY (drive_id) REFERENCES drives (id)
         );
 
@@ -79,12 +95,14 @@ def init_db(conn):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             produto_id INTEGER NOT NULL,
             usuario_id INTEGER DEFAULT 1,
+            fornecedor_id INTEGER,
             tipo TEXT CHECK(tipo IN ('ENTRADA', 'SAIDA')) NOT NULL,
             quantidade INTEGER NOT NULL,
             observacao TEXT,
             criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (produto_id) REFERENCES produtos (id),
-            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id),
+            FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id)
         );
     """
     )
@@ -132,6 +150,45 @@ def seed():
         ("Processador",),
     ]
     cursor.executemany("INSERT INTO categorias (nome) VALUES (?)", categorias)
+
+    # 3. Fornecedores
+    fornecedores = [
+        (
+            "Distribuidora Tech Brasil Ltda",
+            "12.345.678/0001-90",
+            "(11) 3456-7890",
+            "01001-000",
+            "Praça da Sé",
+            "Sé",
+            "São Paulo",
+            "SP",
+        ),
+        (
+            "Kingston Importadora & Distribuição",
+            "98.765.432/0001-10",
+            "(19) 3876-5432",
+            "13010-001",
+            "Avenida Francisco Glicério",
+            "Centro",
+            "Campinas",
+            "SP",
+        ),
+        (
+            "Pichau Informática Atacado",
+            "45.678.901/0001-23",
+            "(47) 3300-1122",
+            "89201-000",
+            "Rua das Palmeiras",
+            "Centro",
+            "Joinville",
+            "SC",
+        ),
+    ]
+    cursor.executemany(
+        """INSERT INTO fornecedores (nome, cpf_cnpj, telefone, cep, logradouro, bairro, cidade, uf)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        fornecedores,
+    )
 
     # Mapeamento auxiliar de Categoria ID
     cursor.execute("SELECT id, nome FROM categorias")

@@ -29,16 +29,17 @@ Este documento detalha o status atual, a estrutura oficial do banco de dados e o
 
 ## 2. Estrutura Canônica das Tabelas (`techstock.db` / `seed.py`)
 
-O banco SQLite ativo possui exatamente as seguintes 6 tabelas:
+O banco SQLite ativo possui as seguintes tabelas estruturadas:
 
 | Tabela | Colunas | Observações Importantes |
 | :--- | :--- | :--- |
+| `fornecedores` | `id`, `nome`, `cpf_cnpj`, `telefone`, `cep`, `logradouro`, `bairro`, `cidade`, `uf`, `criado_em` | **Integração com ViaCEP** para preenchimento de endereço; vinculado a lotes e produtos. |
 | `usuarios` | `id`, `nome`, `email`, `senha`, `senha_hash`, `cargo` | `cargo` padrão é `'Operador'`. |
 | `categorias` | `id`, `nome`, `descritivo` | Categorias de peças (ex: Memória, Armazenamento). |
 | `ruas` | `id`, `nome`, `descricao`, `corredor`, `prateleira` | Endereços físicos do galpão. |
 | `drives` | `id`, `rua_id`, `codigo`, `categoria_sugerida`, `ocupacao_pct` | Posições nas ruas (`FOREIGN KEY (rua_id) REFERENCES ruas(id)`). |
-| `produtos` | `id`, `nome`, `sku`, `preco`, `categoria_id`, `drive_id`, `quantidade`, `quantidade_minima`, `descricao`, `atualizado_em` | **`preco` é inteiro em centavos**. |
-| `movimentacoes` | `id`, `produto_id`, `usuario_id`, `tipo`, `quantidade`, `observacao`, `criado_em` | `tipo` é `'ENTRADA'` ou `'SAIDA'`. Quantidade sempre > 0 (`RN04`). |
+| `produtos` | `id`, `nome`, `sku`, `preco`, `categoria_id`, `fornecedor_id`, `drive_id`, `quantidade`, `quantidade_minima`, `descricao`, `atualizado_em` | **`preco` é inteiro em centavos**; vinculado ao fornecedor/lote. |
+| `movimentacoes` | `id`, `produto_id`, `usuario_id`, `fornecedor_id`, `tipo`, `quantidade`, `observacao`, `criado_em` | `tipo` é `'ENTRADA'` ou `'SAIDA'`. Quantidade sempre > 0 (`RN04`). |
 
 ---
 
@@ -46,15 +47,16 @@ O banco SQLite ativo possui exatamente as seguintes 6 tabelas:
 
 ### ✅ 100% Funcionais (Status 200 / 201)
 - `GET /api/consulta-cep/<cep>` — Consulta externa ViaCEP.
+- `GET, POST, PUT, DELETE /api/fornecedores` — CRUD completo integrado à busca automática de endereço via ViaCEP.
 - `GET, POST, PUT, DELETE /api/categorias` — CRUD completo.
-- `GET, POST, PUT, DELETE /api/produtos` — CRUD completo (suporta preço em centavos e quantidade).
+- `GET, POST, PUT, DELETE /api/produtos` — CRUD completo (suporta preço em centavos, fornecedor e quantidade).
 - `GET, POST, PUT, DELETE /api/usuarios` — Gestão de colaboradores.
-- `GET, POST /api/movimentacoes` (e alias `/api/movimento`) — Consulta e registro de entradas e saídas de estoque.
+- `GET, POST /api/movimentacoes` (e `/api/movimento`) — Consulta e registro de entradas e saídas de estoque.
 
 ### ⚠️ Rotas que Precisam de Ajuste de Nomenclatura SQL
 - **`/api/enderecos-estoque`**: Mapear as consultas para as tabelas oficiais **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
 - **`/api/estoque-local`**: O saldo físico no WMS fica diretamente em `produtos.quantidade` associado a `produtos.drive_id`.
-- **`/api/empresas` e `/api/fornecedores`**: Avaliar remoção ou simplificação, pois o foco central do MVP é o controle físico de estoque.
+- **`/api/empresas`**: Tabela redundante com `fornecedores` — o CRUD oficial e ativo para parceiros é **/api/fornecedores**.
 
 ---
 
