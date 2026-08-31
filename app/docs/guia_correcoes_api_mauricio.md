@@ -1,147 +1,105 @@
 # Guia de Correções da API CRUD — TechStock WMS
 
-Este documento detalha os ajustes técnicos necessários na branch `feat/api-crud-mauricio` para que a API fique 100% aderente ao banco de dados SQLite oficial (`seed.py`), à arquitetura do projeto e à integração com o Front-End (`PR 6`).
+Este documento detalha o status atual, a estrutura oficial do banco de dados e os ajustes necessários na branch `feat/api-crud-mauricio` para garantir que a API fique 100% funcional, aderente aos requisitos de entrega e integrada ao Front-End (`PR 6`).
 
 ---
 
-## 📌 Sumário dos Ajustes Necessários
+## 📌 Sumário dos Ajustes
 
-1. **Método de Conexão com o Banco**: Substituir `database.get_db_connection()` por `database.get_connection()`.
-2. **Compatibilização de Tabelas e Colunas**: Adequar os comandos SQL às tabelas do `seed.py` e `schema.sql`.
-3. **Endpoint Obrigatório para o Front-End**: Implementar `GET /api/produtos/<int:id>/estoque`.
-4. **Segurança de Senhas (RN10)**: Usar `generate_password_hash` ao cadastrar/atualizar senhas em `usuarios`.
-5. **Organização do ViaCEP**: Manter a lógica do ViaCEP em módulo de serviço ou utilitário.
-
----
-
-## 1. Conexão com o Banco de Dados
-
-A classe `Database` em `app/database/connection.py` disponibiliza o método `get_connection()` gerenciado pela requisição Flask (`g.db`).
-
-### ❌ Como estava:
-```python
-conn = database.get_db_connection()  # ERRO: método inexistente
-# ...
-conn.close()  # Conexão é gerenciada pelo ciclo da requisição
-```
-
-### ✅ Como deve ser:
-```python
-db = database.get_connection()
-cursor = db.execute("SELECT * FROM produtos")
-produtos = cursor.fetchall()
-# Não precisa de conn.close() manual em cada rota
-```
+1. **Ajustes Já Realizados na Base**
+2. **Estrutura Canônica das Tabelas (`seed.py`)**
+3. **Status Atual dos Endpoints (Testes Reais)**
+4. **Requisitos de Entrega & Pendências Críticas**
+5. **Checklist Final para Aprovação da PR**
 
 ---
 
-## 2. Estrutura Canônica das Tabelas (conforme `seed.py` / `requisitos_e_regras_de_negocio.md`)
+## 1. Ajustes Já Realizados na Base
 
-O banco SQLite ativo utiliza as seguintes tabelas e colunas:
+- **Conexão com SQLite**: As rotas foram atualizadas para utilizar `db = database.get_connection()`.
+- **Remoção de `conn.close()`**: A conexão é gerenciada pelo ciclo de vida da requisição Flask (`g.db`), não devendo ser fechada manualmente nas rotas.
+- **Factory do Flask (`app/__init__.py`)**: Removido o parâmetro `static_folder="css"`, restaurando o caminho padrão `app/static/`.
+- **Banco de Dados Atualizado (`seed.py`)**:
+  - `produtos.preco`: Adicionado como **`INTEGER` (armazenamento em centavos inteiros — ex: 14990 = R$ 149,90)**.
+  - `usuarios.senha` e `usuarios.senha_hash`: Ambos os campos suportados no schema.
+  - `ruas.corredor` e `ruas.prateleira`: Adicionados para compatibilidade de endereçamento.
+  - `movimentacoes.usuario_id`: Configurado com valor padrão (`DEFAULT 1`) para permitir chamadas diretas via API.
 
-| Tabela | Colunas Principais | Observações |
+---
+
+## 2. Estrutura Canônica das Tabelas (`techstock.db` / `seed.py`)
+
+O banco SQLite ativo possui exatamente as seguintes 6 tabelas:
+
+| Tabela | Colunas | Observações Importantes |
 | :--- | :--- | :--- |
-| `usuarios` | `id`, `nome`, `email`, `senha_hash`, `cargo` | A senha **nunca** é gravada em texto plano. Usar `werkzeug.security.generate_password_hash`. |
-| `categorias` | `id`, `nome` | Nome da categoria (ex: "Memória", "Armazenamento", etc.). |
-| `ruas` | `id`, `nome`, `descricao` | Corredores físicos do galpão. |
-| `drives` | `id`, `rua_id`, `codigo`, `categoria_sugerida`, `ocupacao_pct` | Posições físicas vinculadas a uma rua (`FOREIGN KEY (rua_id) REFERENCES ruas(id)`). |
-| `produtos` | `id`, `nome`, `sku`, `categoria_id`, `drive_id`, `quantidade`, `quantidade_minima`, `descricao`, `atualizado_em` | **Não existe coluna `preco`**. `sku` é único. |
-| `movimentacoes` | `id`, `produto_id`, `usuario_id`, `tipo`, `quantidade`, `observacao`, `criado_em` | `tipo` é `'ENTRADA'` ou `'SAIDA'`. Quantidade sempre positiva (`RN04`). |
+| `usuarios` | `id`, `nome`, `email`, `senha`, `senha_hash`, `cargo` | `cargo` padrão é `'Operador'`. |
+| `categorias` | `id`, `nome`, `descritivo` | Categorias de peças (ex: Memória, Armazenamento). |
+| `ruas` | `id`, `nome`, `descricao`, `corredor`, `prateleira` | Endereços físicos do galpão. |
+| `drives` | `id`, `rua_id`, `codigo`, `categoria_sugerida`, `ocupacao_pct` | Posições nas ruas (`FOREIGN KEY (rua_id) REFERENCES ruas(id)`). |
+| `produtos` | `id`, `nome`, `sku`, `preco`, `categoria_id`, `drive_id`, `quantidade`, `quantidade_minima`, `descricao`, `atualizado_em` | **`preco` é inteiro em centavos**. |
+| `movimentacoes` | `id`, `produto_id`, `usuario_id`, `tipo`, `quantidade`, `observacao`, `criado_em` | `tipo` é `'ENTRADA'` ou `'SAIDA'`. Quantidade sempre > 0 (`RN04`). |
 
 ---
 
-## 3. Endpoint Obrigatório para Integração com o Front-End
+## 3. Status Atual dos Endpoints
 
-O Front-End (telas `entradas.html`, `saidas.html` e `movimentacoes.html`) consome a rota:
+### ✅ 100% Funcionais (Status 200 / 201)
+- `GET /api/consulta-cep/<cep>` — Consulta externa ViaCEP.
+- `GET, POST, PUT, DELETE /api/categorias` — CRUD completo.
+- `GET, POST, PUT, DELETE /api/produtos` — CRUD completo (suporta preço em centavos e quantidade).
+- `GET, POST, PUT, DELETE /api/usuarios` — Gestão de colaboradores.
 
-### `GET /api/produtos/<int:id>/estoque`
-
-**Objetivo**: Retornar os dados da categoria do produto, as ruas/locais onde ele possui saldo e as ruas compatíveis para receber o item (ruas livres ou que já possuem produtos da mesma categoria - `RN02`).
-
-**Exemplo de Implementação**:
-```python
-@api_bp.route('/produtos/<int:id>/estoque', methods=['GET'])
-def obter_estoque_produto(id):
-    db = database.get_connection()
-    
-    # 1. Busca produto e categoria
-    produto = db.execute('''
-        SELECT p.id, p.nome, c.nome AS categoria
-        FROM produtos p
-        JOIN categorias c ON p.categoria_id = c.id
-        WHERE p.id = ?
-    ''', (id,)).fetchone()
-    
-    if not produto:
-        return jsonify({"erro": "Produto não encontrado"}), 404
-        
-    categoria_nome = produto["categoria"]
-    
-    # 2. Locais de origem onde o produto tem estoque
-    locais_origem = db.execute('''
-        SELECT r.id AS rua_id, r.nome AS rua_nome, p.quantidade AS quantidade
-        FROM produtos p
-        LEFT JOIN drives d ON p.drive_id = d.id
-        LEFT JOIN ruas r ON d.rua_id = r.id
-        WHERE p.id = ? AND p.quantidade > 0
-    ''', (id,)).fetchall()
-    
-    # 3. Ruas de destino compatíveis (livres ou com a mesma categoria)
-    ruas_destino = db.execute('''
-        SELECT DISTINCT r.id, r.nome, d.categoria_sugerida AS tipo
-        FROM ruas r
-        LEFT JOIN drives d ON d.rua_id = r.id
-        WHERE d.categoria_sugerida = ? OR d.categoria_sugerida IS NULL OR d.categoria_sugerida = 'Vazio'
-    ''', (categoria_nome,)).fetchall()
-    
-    return jsonify({
-        "categoria": categoria_nome,
-        "locais_origem": [dict(row) for row in locais_origem],
-        "ruas_destino": [dict(row) for row in ruas_destino]
-    }), 200
-```
+### ⚠️ Rotas que Precisam de Ajuste de Nomenclatura SQL
+- **`/api/enderecos-estoque`**: Mapear as consultas para as tabelas oficiais **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
+- **`/api/movimento`**: Ajustar o nome da tabela nas queries SQL para **`movimentacoes`** (no plural).
+- **`/api/estoque-local`**: O saldo físico no WMS fica diretamente em `produtos.quantidade` associado a `produtos.drive_id`.
+- **`/api/empresas` e `/api/fornecedores`**: Avaliar remoção ou simplificação, pois o foco central do MVP é o controle físico de estoque.
 
 ---
 
-## 4. Cadastro de Usuários com Senha Criptografada (`RN10`)
+## 4. Requisitos Obrigatórios & Pendências Críticas
 
-No CRUD de usuários:
+### A. Criptografia de Senhas (`RN10`) — *Requisito Obrigatório do Projeto*
+> **ATENÇÃO:** O armazenamento de senhas em texto plano **não é aceito na entrega do projeto** e viola a regra de negócio canônica `RN10`.  
+> No cadastro e edição de usuários (`POST` e `PUT /api/usuarios`), utilize sempre `generate_password_hash` da biblioteca `werkzeug.security` para gerar o hash antes de persistir no banco.
+
+Exemplo de uso:
 ```python
 from werkzeug.security import generate_password_hash
 
-@api_bp.route('/usuarios', methods=['POST'])
-def criar_usuario():
-    dados = request.get_json() or {}
-    nome = dados.get('nome')
-    email = dados.get('email')
-    senha = dados.get('senha')
-    cargo = dados.get('cargo', 'Operador')
-
-    if not nome or not email or not senha:
-        return jsonify({"erro": "Campos 'nome', 'email' e 'senha' são obrigatórios"}), 400
-
-    senha_hash = generate_password_hash(senha)
-    db = database.get_connection()
-    try:
-        cursor = db.cursor()
-        cursor.execute('''
-            INSERT INTO usuarios (nome, email, senha_hash, cargo)
-            VALUES (?, ?, ?, ?)
-        ''', (nome, email, senha_hash, cargo))
-        db.commit()
-        novo_id = cursor.lastrowid
-    except sqlite3.IntegrityError:
-        return jsonify({"erro": "E-mail já cadastrado"}), 400
-
-    return jsonify({"mensagem": "Usuário criado com sucesso", "id": novo_id}), 201
+senha_hash = generate_password_hash(dados.get('senha'))
+# Gravar senha_hash na coluna usuarios.senha_hash
 ```
 
 ---
 
-## 5. Checklist de Entrega para a PR
+### B. Endpoint de Estoque para o Front-End (`RF17` / PR 6)
+> As telas de **Entradas**, **Saídas** e **Transferências** do Front-End realizam requisições automáticas para:
+> **`GET /api/produtos/<int:id>/estoque`**
 
-- [ ] Todas as chamadas de banco utilizam `database.get_connection()`.
-- [ ] O endpoint `GET /api/produtos/<int:id>/estoque` está respondendo o JSON com `categoria`, `locais_origem` e `ruas_destino`.
-- [ ] As tabelas consultadas batem com `usuarios`, `categorias`, `ruas`, `drives`, `produtos`, `movimentacoes`.
-- [ ] O `app/__init__.py` não possui `static_folder="css"`.
-- [ ] Executar os testes locais com `python run.py`.
+O endpoint deve retornar um JSON com a seguinte estrutura:
+```json
+{
+  "categoria": "Memória",
+  "locais_origem": [
+    { "rua_id": 1, "rua_nome": "Rua 01", "quantidade": 20 }
+  ],
+  "ruas_destino": [
+    { "id": 1, "nome": "Rua 01", "tipo": "Memória" },
+    { "id": 2, "nome": "Rua 02", "tipo": null }
+  ]
+}
+```
+
+---
+
+## 5. Checklist Final para Aprovação da PR
+
+- [x] Conexão com banco via `database.get_connection()`.
+- [x] Configuração correta de pasta estática no `__init__.py`.
+- [x] `seed.py` com preços em centavos e campos de compatibilidade.
+- [ ] Senhas de usuários criptografadas com `generate_password_hash` (`RN10`).
+- [ ] Endpoint `GET /api/produtos/<int:id>/estoque` implementado.
+- [ ] Queries de movimentação apontando para `movimentacoes` (plural).
+- [ ] Execução limpa do `python app/seed.py` e testes com `python run.py`.
