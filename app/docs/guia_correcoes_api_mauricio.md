@@ -29,11 +29,12 @@ Este documento detalha o status atual, a estrutura oficial do banco de dados e o
 
 ## 2. Estrutura Canônica das Tabelas (`techstock.db` / `seed.py`)
 
-O banco SQLite ativo possui as seguintes tabelas estruturadas:
+O banco SQLite ativo possui as seguintes tabelas estruturadas (conforme o pré-projeto e schema oficial):
 
 | Tabela | Colunas | Observações Importantes |
 | :--- | :--- | :--- |
-| `fornecedores` | `id`, `nome`, `cpf_cnpj`, `telefone`, `cep`, `logradouro`, `bairro`, `cidade`, `uf`, `criado_em` | **Integração com ViaCEP** para preenchimento de endereço; vinculado a lotes e produtos. |
+| `empresas` | `id`, `nome_fantasia`, `razao_social`, `cnpj`, `tipo`, `cep`, `logradouro`, `bairro`, `cidade`, `uf`, `criado_em` | **Fabricantes e parceiros**; integração com ViaCEP para busca de endereço. |
+| `fornecedores` | `id`, `nome`, `cpf_cnpj`, `telefone`, `cep`, `logradouro`, `bairro`, `cidade`, `uf`, `criado_em` | **Fornecedores de lotes**; integração com ViaCEP para preenchimento de endereço. |
 | `usuarios` | `id`, `nome`, `email`, `senha`, `senha_hash`, `cargo` | `cargo` padrão é `'Operador'`. |
 | `categorias` | `id`, `nome`, `descritivo` | Categorias de peças (ex: Memória, Armazenamento). |
 | `ruas` | `id`, `nome`, `descricao`, `corredor`, `prateleira` | Endereços físicos do galpão. |
@@ -47,7 +48,8 @@ O banco SQLite ativo possui as seguintes tabelas estruturadas:
 
 ### ✅ 100% Funcionais (Status 200 / 201)
 - `GET /api/consulta-cep/<cep>` — Consulta externa ViaCEP.
-- `GET, POST, PUT, DELETE /api/fornecedores` — CRUD completo integrado à busca automática de endereço via ViaCEP.
+- `GET, POST, PUT, DELETE /api/empresas` — CRUD completo de empresas/fabricantes integrado ao ViaCEP.
+- `GET, POST, PUT, DELETE /api/fornecedores` — CRUD completo de fornecedores integrado ao ViaCEP.
 - `GET, POST, PUT, DELETE /api/categorias` — CRUD completo.
 - `GET, POST, PUT, DELETE /api/produtos` — CRUD completo (suporta preço em centavos, fornecedor e quantidade).
 - `GET, POST, PUT, DELETE /api/usuarios` — Gestão de colaboradores.
@@ -56,7 +58,6 @@ O banco SQLite ativo possui as seguintes tabelas estruturadas:
 ### ⚠️ Rotas que Precisam de Ajuste de Nomenclatura SQL
 - **`/api/enderecos-estoque`**: Mapear as consultas para as tabelas oficiais **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
 - **`/api/estoque-local`**: O saldo físico no WMS fica diretamente em `produtos.quantidade` associado a `produtos.drive_id`.
-- **`/api/empresas`**: Tabela redundante com `fornecedores` — o CRUD oficial e ativo para parceiros é **/api/fornecedores**.
 
 ---
 

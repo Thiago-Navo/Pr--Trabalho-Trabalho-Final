@@ -24,6 +24,7 @@ Esta branch (`feat/api-crud-mauricio`) organiza a camada de API do TechStock (`a
 
 ### ✅ Endpoints Funcionais (Testados com Sucesso)
 * **`GET /api/consulta-cep/<cep>`** — Consulta de endereço via ViaCEP.
+* **`GET, POST, PUT, DELETE /api/empresas`** — CRUD completo de empresas/fabricantes com busca automática de endereço via ViaCEP.
 * **`GET, POST, PUT, DELETE /api/fornecedores`** — CRUD completo com preenchimento automático de endereço via ViaCEP.
 * **`GET, POST, PUT, DELETE /api/categorias`** — CRUD completo na tabela `categorias`.
 * **`GET, POST, PUT, DELETE /api/produtos`** — CRUD completo na tabela `produtos` (com preço em centavos e fornecedor).
@@ -33,7 +34,6 @@ Esta branch (`feat/api-crud-mauricio`) organiza a camada de API do TechStock (`a
 ### ⚠️ Endpoints com Ajustes Pendentes
 * **`/api/enderecos-estoque`** ➔ Adequar queries para apontar para as tabelas **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
 * **`/api/estoque-local`** ➔ Mapear para o saldo físico direto de `produtos` alocados nos `drives`.
-* **`/api/empresas`** ➔ Tabela redundante com `fornecedores` — o CRUD oficial ativo para parceiros/lotes é **/api/fornecedores**.
 
 ---
 

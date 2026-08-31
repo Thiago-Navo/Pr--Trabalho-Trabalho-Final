@@ -27,6 +27,7 @@ def init_db(conn):
         DROP TABLE IF EXISTS ruas;
         DROP TABLE IF EXISTS categorias;
         DROP TABLE IF EXISTS fornecedores;
+        DROP TABLE IF EXISTS empresas;
         DROP TABLE IF EXISTS usuarios;
 
         CREATE TABLE usuarios (
@@ -36,6 +37,20 @@ def init_db(conn):
             senha TEXT,
             senha_hash TEXT,
             cargo TEXT DEFAULT 'Operador'
+        );
+
+        CREATE TABLE empresas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome_fantasia TEXT NOT NULL,
+            razao_social TEXT,
+            cnpj TEXT UNIQUE NOT NULL,
+            tipo TEXT DEFAULT 'fabricante',
+            cep TEXT,
+            logradouro TEXT,
+            bairro TEXT,
+            cidade TEXT,
+            uf TEXT,
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE fornecedores (
@@ -151,7 +166,49 @@ def seed():
     ]
     cursor.executemany("INSERT INTO categorias (nome) VALUES (?)", categorias)
 
-    # 3. Fornecedores
+    # 3. Empresas (Fabricantes / Fornecedores)
+    empresas = [
+        (
+            "Kingston Technology",
+            "Kingston Technology Brasil Ltda",
+            "02.345.678/0001-11",
+            "fabricante",
+            "01001-000",
+            "Praça da Sé",
+            "Sé",
+            "São Paulo",
+            "SP",
+        ),
+        (
+            "ASUS Brasil",
+            "ASUS do Brasil Fabricação e Comércio",
+            "05.123.456/0001-99",
+            "fabricante",
+            "13010-001",
+            "Avenida Francisco Glicério",
+            "Centro",
+            "Campinas",
+            "SP",
+        ),
+        (
+            "AMD Semimodutores",
+            "Advanced Micro Devices Brasil",
+            "07.890.123/0001-44",
+            "fabricante",
+            "01310-100",
+            "Avenida Paulista",
+            "Bela Vista",
+            "São Paulo",
+            "SP",
+        ),
+    ]
+    cursor.executemany(
+        """INSERT INTO empresas (nome_fantasia, razao_social, cnpj, tipo, cep, logradouro, bairro, cidade, uf)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        empresas,
+    )
+
+    # 4. Fornecedores
     fornecedores = [
         (
             "Distribuidora Tech Brasil Ltda",
