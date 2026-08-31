@@ -1,51 +1,68 @@
-# PR: Implementação do CRUD da API e Integração com Front-End
+# PR: Implementação e Ajustes da API REST (CRUD) — TechStock WMS
 
-## 📋 Descrição do Pull Request
+## 📋 Resumo do Pull Request
 
 Esta branch (`feat/api-crud-mauricio`) organiza a camada de API do TechStock (`app/controllers/api_controller.py`) para fornecer operações CRUD e endpoints JSON para as telas do sistema.
 
 ---
 
-## 🛠️ O que esta PR deve implementar / corrigir
+## 🔄 Ajustes Já Realizados na Base
 
-1. **Correção de Conexão com SQLite**:
-   - Utilizar `db = database.get_connection()` em todas as rotas (a classe `Database` não possui `get_db_connection`).
-   - Evitar `conn.close()` manual (o ciclo de vida da conexão é gerenciado pelo Flask via `g.db`).
+1. **Conexão com SQLite**:
+   - Todas as rotas foram atualizadas para utilizar `db = database.get_connection()`.
+2. **Configuração da Aplicação (`app/__init__.py`)**:
+   - Removido `static_folder="css"` para restaurar o diretório padrão `app/static/`, mantendo os blueprints `front_bp` e `api_bp` registrados.
+3. **Banco de Dados e `seed.py` Atualizados**:
+   - Tabela `produtos`: Campo `preco` adicionado como **`INTEGER` (armazenamento padrão em centavos inteiros)**.
+   - Tabela `usuarios`: Suporte a `senha` e `senha_hash`, com `cargo DEFAULT 'Operador'`.
+   - Tabela `ruas`: Campos `corredor` e `prateleira` adicionados para flexibilidade de endereçamento.
+   - Tabela `movimentacoes`: `usuario_id` com valor padrão para permitir registros diretos via API.
 
-2. **Compatibilidade com o Banco Oficial (`seed.py`)**:
-   - `usuarios`: Utilizar `senha_hash` com `generate_password_hash` (`RN10`).
-   - `produtos`: Ajustar colunas para `id`, `nome`, `sku`, `categoria_id`, `drive_id`, `quantidade`, `quantidade_minima`, `descricao` (remover `preco`).
-   - `categorias`: Operações na tabela `categorias` (`id`, `nome`).
-   - `ruas` e `drives`: Operações nas tabelas de endereçamento físico do galpão.
-   - `movimentacoes`: Registro de entradas e saídas na tabela `movimentacoes` (`id`, `produto_id`, `usuario_id`, `tipo`, `quantidade`, `observacao`).
+---
 
-3. **Endpoint Obrigatório para o Front-End (PR 6)**:
-   - `GET /api/produtos/<int:id>/estoque`: Retorna JSON com:
-     - `categoria`: Nome da categoria do produto.
-     - `locais_origem`: Ruas e quantidades onde o produto tem saldo.
-     - `ruas_destino`: Ruas compatíveis para reabastecimento ou transferência (`RN02`).
+## 🚦 Status Atual dos Endpoints
 
-4. **Configuração da Aplicação (`app/__init__.py`)**:
-   - O `__init__.py` já está configurado registrando `front_bp` e `api_bp`, utilizando o diretório padrão `app/static/`.
+### ✅ Endpoints Funcionais (Testados com Sucesso)
+* **`GET /api/consulta-cep/<cep>`** — Consulta de endereço via ViaCEP.
+* **`GET, POST, PUT, DELETE /api/categorias`** — CRUD completo na tabela `categorias`.
+* **`GET, POST, PUT, DELETE /api/produtos`** — CRUD completo na tabela `produtos` (com preço em centavos).
+* **`GET, POST, PUT, DELETE /api/usuarios`** — Listagem e gestão de usuários.
+
+### ⚠️ Endpoints com Ajustes Pendentes
+* **`/api/enderecos-estoque`** ➔ Adequar queries para apontar para as tabelas **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
+* **`/api/movimento`** ➔ Renomear chamadas SQL para a tabela oficial **`movimentacoes`** (no plural).
+* **`/api/estoque-local`** ➔ Mapear para o saldo físico direto de `produtos` alocados nos `drives`.
+* **`/api/empresas` e `/api/fornecedores`** ➔ Avaliar a necessidade dessas rotas, pois essas tabelas não fazem parte do fluxo principal de movimentações do galpão no MVP.
+
+---
+
+## 🚨 Requisitos Obrigatórios e Pendências Críticas
+
+### 1. Criptografia de Senhas (`RN10`) — *Requisito Obrigatório de Entrega*
+> **IMPORTANTE:** O armazenamento de senhas em texto plano **viola o requisito obrigatório de segurança (`RN10`)** estipulado na documentação do projeto.  
+> No cadastro e atualização de usuários (`POST` e `PUT /api/usuarios`), a senha deve ser obrigatoriamente criptografada com `werkzeug.security.generate_password_hash` antes de salvar em `senha_hash`.
+
+### 2. Endpoint de Estoque Dinâmico para o Front-End (PR 6)
+> O Front-End (telas de Entradas, Saídas e Transferências) depende da rota:
+> **`GET /api/produtos/<int:id>/estoque`**
+> Deve retornar JSON contendo: `categoria`, `locais_origem` (ruas com saldo do produto) e `ruas_destino` (ruas compatíveis/livres conforme `RN02`).
+
+### 3. Remoção de `conn.close()` Manual
+> A classe `Database` gerencia a abertura e fechamento da conexão automaticamente pelo ciclo da requisição Flask (`g.db`). Chamar `conn.close()` manualmente dentro das rotas pode gerar erros em requisições subsequentes.
 
 ---
 
 ## 🧪 Como Testar
 
 ```bash
-# 1. Popular o banco com os dados iniciais
+# 1. Recriar o banco com os dados iniciais do seed
 python app/seed.py
 
-# 2. Iniciar o servidor Flask
+# 2. Iniciar o servidor
 python run.py
 
-# 3. Testar os endpoints via curl ou Postman:
+# 3. Testar endpoints via curl:
 curl -X GET http://localhost:5000/api/produtos
-curl -X GET http://localhost:5000/api/produtos/1/estoque
 curl -X GET http://localhost:5000/api/categorias
+curl -X GET http://localhost:5000/api/consulta-cep/01001000
 ```
-
----
-
-## 📖 Documentação de Referência
-- Consulte o guia completo em `app/docs/guia_correcoes_api_mauricio.md`.
