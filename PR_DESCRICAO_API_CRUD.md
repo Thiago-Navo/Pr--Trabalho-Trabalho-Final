@@ -22,18 +22,16 @@ Esta branch (`feat/api-crud-mauricio`) organiza a camada de API do TechStock (`a
 
 ## 🚦 Status Atual dos Endpoints
 
-### ✅ Endpoints Funcionais (Testados com Sucesso)
+### ✅ Todos os Endpoints da API Estão Funcionais (Testados com Sucesso)
 * **`GET /api/consulta-cep/<cep>`** — Consulta de endereço via ViaCEP.
-* **`GET, POST, PUT, DELETE /api/empresas`** — CRUD completo de empresas/fabricantes com busca automática de endereço via ViaCEP.
-* **`GET, POST, PUT, DELETE /api/fornecedores`** — CRUD completo com preenchimento automático de endereço via ViaCEP.
+* **`GET, POST, PUT, DELETE /api/empresas`** — CRUD completo de empresas/fabricantes com busca de endereço via ViaCEP.
+* **`GET, POST, PUT, DELETE /api/fornecedores`** — CRUD completo de fornecedores com preenchimento via ViaCEP.
 * **`GET, POST, PUT, DELETE /api/categorias`** — CRUD completo na tabela `categorias`.
 * **`GET, POST, PUT, DELETE /api/produtos`** — CRUD completo na tabela `produtos` (com preço em centavos e fornecedor).
 * **`GET, POST, PUT, DELETE /api/usuarios`** — Listagem e gestão de usuários.
+* **`GET, POST, DELETE /api/enderecos-estoque`** — Gestão do endereçamento físico do estoque.
+* **`GET, POST /api/estoque-local`** — Gestão de posições e saldos por local.
 * **`GET, POST /api/movimentacoes`** (e alias `/api/movimento`) — Consulta e registro de entradas e saídas de estoque.
-
-### ⚠️ Endpoints com Ajustes Pendentes
-* **`/api/enderecos-estoque`** ➔ Adequar queries para apontar para as tabelas **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
-* **`/api/estoque-local`** ➔ Mapear para o saldo físico direto de `produtos` alocados nos `drives`.
 
 ---
 

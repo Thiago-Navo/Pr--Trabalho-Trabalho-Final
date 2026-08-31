@@ -37,27 +37,27 @@ O banco SQLite ativo possui as seguintes tabelas estruturadas (conforme o pré-p
 | `fornecedores` | `id`, `nome`, `cpf_cnpj`, `telefone`, `cep`, `logradouro`, `bairro`, `cidade`, `uf`, `criado_em` | **Fornecedores de lotes**; integração com ViaCEP para preenchimento de endereço. |
 | `usuarios` | `id`, `nome`, `email`, `senha`, `senha_hash`, `cargo` | `cargo` padrão é `'Operador'`. |
 | `categorias` | `id`, `nome`, `descritivo` | Categorias de peças (ex: Memória, Armazenamento). |
-| `ruas` | `id`, `nome`, `descricao`, `corredor`, `prateleira` | Endereços físicos do galpão. |
+| `ruas` | `id`, `nome`, `descricao`, `corredor`, `prateleira` | Endereços físicos do galpão (usado no Front-End). |
 | `drives` | `id`, `rua_id`, `codigo`, `categoria_sugerida`, `ocupacao_pct` | Posições nas ruas (`FOREIGN KEY (rua_id) REFERENCES ruas(id)`). |
+| `endereco_estoque` | `id`, `nome`, `tipo`, `corredor`, `prateleira`, `parent_id`, `caminho`, `em_uso` | Hierarquia de endereçamento materializado do projeto original. |
 | `produtos` | `id`, `nome`, `sku`, `preco`, `categoria_id`, `fornecedor_id`, `drive_id`, `quantidade`, `quantidade_minima`, `descricao`, `atualizado_em` | **`preco` é inteiro em centavos**; vinculado ao fornecedor/lote. |
+| `estoque_local` | `id`, `produto_id`, `endereco_estoque_id`, `empresa_id`, `quantidade` | Vínculo produto ↔ endereço com saldo (`FOREIGN KEY (produto_id)`). |
 | `movimentacoes` | `id`, `produto_id`, `usuario_id`, `fornecedor_id`, `tipo`, `quantidade`, `observacao`, `criado_em` | `tipo` é `'ENTRADA'` ou `'SAIDA'`. Quantidade sempre > 0 (`RN04`). |
 
 ---
 
 ## 3. Status Atual dos Endpoints
 
-### ✅ 100% Funcionais (Status 200 / 201)
+### ✅ 100% dos Endpoints Funcionais (Status 200 / 201)
 - `GET /api/consulta-cep/<cep>` — Consulta externa ViaCEP.
-- `GET, POST, PUT, DELETE /api/empresas` — CRUD completo de empresas/fabricantes integrado ao ViaCEP.
-- `GET, POST, PUT, DELETE /api/fornecedores` — CRUD completo de fornecedores integrado ao ViaCEP.
-- `GET, POST, PUT, DELETE /api/categorias` — CRUD completo.
-- `GET, POST, PUT, DELETE /api/produtos` — CRUD completo (suporta preço em centavos, fornecedor e quantidade).
+- `GET, POST, PUT, DELETE /api/empresas` — CRUD completo de empresas/fabricantes com ViaCEP.
+- `GET, POST, PUT, DELETE /api/fornecedores` — CRUD completo de fornecedores com ViaCEP.
+- `GET, POST, PUT, DELETE /api/categorias` — CRUD completo de categorias.
+- `GET, POST, PUT, DELETE /api/produtos` — CRUD completo de produtos (com preço em centavos e fornecedor).
 - `GET, POST, PUT, DELETE /api/usuarios` — Gestão de colaboradores.
+- `GET, POST, DELETE /api/enderecos-estoque` — Gestão de endereçamento do estoque.
+- `GET, POST /api/estoque-local` — Gestão de saldos por localização.
 - `GET, POST /api/movimentacoes` (e `/api/movimento`) — Consulta e registro de entradas e saídas de estoque.
-
-### ⚠️ Rotas que Precisam de Ajuste de Nomenclatura SQL
-- **`/api/enderecos-estoque`**: Mapear as consultas para as tabelas oficiais **`ruas`** e **`drives`** (a tabela `endereco_estoque` não existe no SQLite).
-- **`/api/estoque-local`**: O saldo físico no WMS fica diretamente em `produtos.quantidade` associado a `produtos.drive_id`.
 
 ---
 

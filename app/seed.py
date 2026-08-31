@@ -21,6 +21,8 @@ def init_db(conn):
 
     cursor.executescript(
         """
+        DROP TABLE IF EXISTS estoque_local;
+        DROP TABLE IF EXISTS endereco_estoque;
         DROP TABLE IF EXISTS movimentacoes;
         DROP TABLE IF EXISTS produtos;
         DROP TABLE IF EXISTS drives;
@@ -89,6 +91,17 @@ def init_db(conn):
             FOREIGN KEY (rua_id) REFERENCES ruas (id) ON DELETE CASCADE
         );
 
+        CREATE TABLE endereco_estoque (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT,
+            tipo TEXT DEFAULT 'vao',
+            corredor TEXT,
+            prateleira TEXT,
+            parent_id INTEGER,
+            caminho TEXT DEFAULT '',
+            em_uso BOOLEAN DEFAULT 1
+        );
+
         CREATE TABLE produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
@@ -104,6 +117,17 @@ def init_db(conn):
             FOREIGN KEY (categoria_id) REFERENCES categorias (id),
             FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id),
             FOREIGN KEY (drive_id) REFERENCES drives (id)
+        );
+
+        CREATE TABLE estoque_local (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL,
+            endereco_estoque_id INTEGER,
+            empresa_id INTEGER,
+            quantidade INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (produto_id) REFERENCES produtos (id),
+            FOREIGN KEY (endereco_estoque_id) REFERENCES endereco_estoque (id),
+            FOREIGN KEY (empresa_id) REFERENCES empresas (id)
         );
 
         CREATE TABLE movimentacoes (
@@ -468,6 +492,36 @@ def seed():
            (produto_id, usuario_id, tipo, quantidade, observacao, criado_em) 
            VALUES (?, ?, ?, ?, ?, ?)""",
         movimentacoes,
+    )
+
+    # 6. Endereço de Estoque (Hierarquia / Corredores)
+    enderecos = [
+        ("Corredor A - Vão 01", "vao", "A", "01", None, "A/01", 1),
+        ("Corredor A - Vão 02", "vao", "A", "02", None, "A/02", 1),
+        ("Corredor B - Vão 01", "vao", "B", "01", None, "B/01", 1),
+        ("Corredor C - Vão 01", "vao", "C", "01", None, "C/01", 1),
+    ]
+    cursor.executemany(
+        """INSERT INTO endereco_estoque (nome, tipo, corredor, prateleira, parent_id, caminho, em_uso)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        enderecos,
+    )
+
+    # 7. Estoque Local (Vínculo Produto <-> Endereço / Empresa)
+    cursor.execute("SELECT id FROM empresas LIMIT 1")
+    emp_row = cursor.fetchone()
+    emp_id = emp_row["id"] if emp_row else 1
+
+    estoque_local_data = [
+        (prod_map["SKU-0231"], 1, emp_id, 148),
+        (prod_map["SKU-0119"], 2, emp_id, 9),
+        (prod_map["SKU-0054"], 3, emp_id, 31),
+        (prod_map["SKU-0176"], 4, emp_id, 17),
+    ]
+    cursor.executemany(
+        """INSERT INTO estoque_local (produto_id, endereco_estoque_id, empresa_id, quantidade)
+           VALUES (?, ?, ?, ?)""",
+        estoque_local_data,
     )
 
     conn.commit()
