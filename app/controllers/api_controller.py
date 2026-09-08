@@ -519,14 +519,12 @@ def registrar_estoque_local():
 # ==================================================
 # 8. MOVIMENTAÇÕES (HISTÓRICO / REGISTRO)
 # ==================================================
-@api_bp.route('/movimentacoes', methods=['GET'])
 @api_bp.route('/movimento', methods=['GET'])
-def listar_movimentacoes():
+def listar_movimento():
     conn = database.get_connection()
-    movimentacoes = conn.execute('SELECT * FROM movimentacoes ORDER BY criado_em DESC').fetchall()
-    return jsonify([dict(row) for row in movimentacoes]), 200
+    movimento = conn.execute('SELECT * FROM movimento ORDER BY criado_em DESC').fetchall()
+    return jsonify([dict(row) for row in movimento]), 200
 
-@api_bp.route('/movimentacoes', methods=['POST'])
 @api_bp.route('/movimento', methods=['POST'])
 def registrar_movimentacao():
     dados = request.get_json() or {}
@@ -545,7 +543,7 @@ def registrar_movimentacao():
     conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO movimentacoes (produto_id, usuario_id, tipo, quantidade, observacao)
+        INSERT INTO movimento (produto_id, usuario_id, tipo, quantidade, observacao)
         VALUES (?, ?, ?, ?, ?)
     ''', (produto_id, usuario_id, tipo, quantidade, observacao))
     conn.commit()
