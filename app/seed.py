@@ -23,7 +23,7 @@ def init_db(conn):
         """
         DROP TABLE IF EXISTS estoque_local;
         DROP TABLE IF EXISTS endereco_estoque;
-        DROP TABLE IF EXISTS movimentacoes;
+        DROP TABLE IF EXISTS movimento;
         DROP TABLE IF EXISTS produtos;
         DROP TABLE IF EXISTS drives;
         DROP TABLE IF EXISTS ruas;
@@ -130,7 +130,7 @@ def init_db(conn):
             FOREIGN KEY (empresa_id) REFERENCES empresas (id)
         );
 
-        CREATE TABLE movimentacoes (
+        CREATE TABLE movimento (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             produto_id INTEGER NOT NULL,
             usuario_id INTEGER DEFAULT 1,
@@ -436,7 +436,7 @@ def seed():
     prod_map = {row["sku"]: row["id"] for row in cursor.fetchall()}
 
     # 5. Movimentações
-    movimentacoes = [
+    movimento = [
         (
             prod_map["SKU-0231"],
             usr_map["Thiago Rodrigues"],
@@ -488,10 +488,10 @@ def seed():
     ]
 
     cursor.executemany(
-        """INSERT INTO movimentacoes 
+        """INSERT INTO movimento 
            (produto_id, usuario_id, tipo, quantidade, observacao, criado_em) 
            VALUES (?, ?, ?, ?, ?, ?)""",
-        movimentacoes,
+        movimento,
     )
 
     # 6. Endereço de Estoque (Hierarquia / Corredores)
