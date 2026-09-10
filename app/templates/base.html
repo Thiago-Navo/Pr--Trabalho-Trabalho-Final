@@ -10,6 +10,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 
+  <!-- PWA: manifest, ícones e cor de tema, para o navegador oferecer "Instalar app" -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#1B2430">
+  <link rel="icon" href="{{ url_for('static', filename='img/icons/icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/icon-192.png') }}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Techstock">
+
   <!-- Aplica o tema salvo ANTES de renderizar, para não piscar tema errado -->
   <script>
     (function () {
@@ -81,6 +91,9 @@
           {% block busca %}<span></span>{% endblock %}
         </div>
         <div class="topbar-right">
+          <button class="btn-icon" id="btnInstalarApp" title="Instalar como app" hidden>
+            <i class="bi bi-download"></i>
+          </button>
           <button class="btn-icon" id="btnTema" title="Alternar tema claro/escuro">
             <i class="bi bi-moon-stars" id="iconeTema"></i>
           </button>
@@ -138,6 +151,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='js/playlist.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/pwa.js') }}"></script>
   <!-- Scripts específicos de cada página (gráficos, formulários com JS,
        etc). Ficam num container próprio para que nav.js consiga
        localizá-los e reexecutá-los ao trocar de página sem recarregar

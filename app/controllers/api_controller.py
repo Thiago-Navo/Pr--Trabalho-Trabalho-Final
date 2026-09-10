@@ -307,6 +307,43 @@ def deletar_produto(id):
         return jsonify({"erro": "Produto não encontrado"}), 404
     return jsonify({"mensagem": "Produto removido com sucesso"}), 200
 
+@api_bp.route('/produtos/<int:produto_id>/estoque', methods=['GET'])
+def api_estoque_produto_crud(produto_id):
+    conn = database.get_connection()
+    produto = conn.execute("SELECT * FROM produtos WHERE id = ?", (produto_id,)).fetchone()
+    if not produto:
+        conn.close()
+        return jsonify({"erro": "produto não encontrado"}), 404
+
+    cat_nome = "Geral"
+    if "categoria" in produto.keys() and produto["categoria"]:
+        cat_nome = produto["categoria"]
+    elif "categoria_id" in produto.keys() and produto["categoria_id"]:
+        cat = conn.execute("SELECT nome FROM categorias WHERE id = ?", (produto["categoria_id"],)).fetchone()
+        if cat:
+            cat_nome = cat["nome"]
+
+    locais = conn.execute("""
+        SELECT r.id AS rua_id, r.nome AS rua_nome, e.quantidade
+        FROM estoque e JOIN ruas r ON r.id = e.rua_id
+        WHERE e.produto_id = ? AND e.quantidade > 0
+        ORDER BY r.nome
+    """, (produto_id,)).fetchall()
+
+    ruas_destino = conn.execute("""
+        SELECT id, nome, tipo FROM ruas
+        WHERE tipo IS NULL OR tipo = ?
+        ORDER BY nome
+    """, (cat_nome,)).fetchall()
+    conn.close()
+
+    return jsonify({
+        "categoria": cat_nome,
+        "locais_origem": [dict(l) for l in locais],
+        "ruas_destino": [dict(r) for r in ruas_destino],
+    }), 200
+
+
 
 # ==================================================
 # 4. CRUD - CATEGORIAS
