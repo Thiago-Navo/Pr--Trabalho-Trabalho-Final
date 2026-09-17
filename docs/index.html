@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechStock | Gestão de Estoque</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --primary: #38bdf8;
+      --accent: #22c55e;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #020817 0%, #0f172a 100%);
+      color: var(--text);
+    }
+    a { color: var(--primary); text-decoration: none; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    header {
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.9);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(6px);
+    }
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      max-width: 1100px; margin: 0 auto; padding: 18px 24px;
+    }
+    .brand { font-weight: 700; font-size: 1.2rem; }
+    .nav-links { display: flex; gap: 18px; color: var(--muted); }
+    .hero {
+      display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 28px;
+      padding: 72px 24px 48px;
+      align-items: center;
+    }
+    .hero h1 { font-size: clamp(2.2rem, 4vw, 4rem); margin: 0 0 16px; }
+    .hero p { color: var(--muted); font-size: 1.08rem; line-height: 1.7; }
+    .cta {
+      display: inline-block; margin-top: 18px; background: var(--primary);
+      color: #06141f; padding: 12px 22px; border-radius: 999px; font-weight: 700;
+    }
+    .panel {
+      background: rgba(17, 24, 39, 0.9); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0; }
+    .stat {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 22px; text-align: center;
+    }
+    .stat strong { display: block; font-size: 1.8rem; color: var(--primary); }
+    section { padding: 32px 0; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 20px;
+    }
+    .card h3 { margin-top: 0; }
+    .card p { color: var(--muted); line-height: 1.7; }
+    footer {
+      border-top: 1px solid var(--border); padding: 20px 0 36px; color: var(--muted); text-align: center;
+    }
+    @media (max-width: 760px) {
+      .hero { grid-template-columns: 1fr; padding-top: 48px; }
+      .stats { grid-template-columns: 1fr; }
+      nav { flex-direction: column; gap: 10px; }
+      .nav-links { flex-wrap: wrap; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <div class="brand">TechStock</div>
+      <div class="nav-links">
+        <a href="#sobre">Sobre</a>
+        <a href="#funcionalidades">Funcionalidades</a>
+        <a href="#tecnologias">Tecnologias</a>
+        <a href="#contato">Contato</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero" id="sobre">
+      <div>
+        <p style="color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Sistema de gestão de estoque</p>
+        <h1>Organize o controle de produtos, entradas e saídas com eficiência.</h1>
+        <p>
+          O TechStock é uma aplicação web para gestão de estoque de informática, com foco em controle de produtos,
+          movimentações, categoria de itens e indicadores em tempo real.
+        </p>
+        <a class="cta" href="https://github.com" target="_blank" rel="noreferrer">Ver repositório</a>
+      </div>
+      <div class="panel">
+        <h3>Resumo do projeto</h3>
+        <p>Dashboard inteligente, autenticação por perfil, movimentações entre ruas, publicação de relatório e gestão de estoque em um único ambiente.</p>
+        <div class="stats">
+          <div class="stat"><strong>8+</strong> categorias</div>
+          <div class="stat"><strong>100%</strong> local</div>
+          <div class="stat"><strong>1</strong> dashboard</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="funcionalidades">
+      <h2>Funcionalidades principais</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Cadastro de produtos</h3>
+          <p>Registro de itens com SKU, categoria, estoque mínimo e máximo.</p>
+        </article>
+        <article class="card">
+          <h3>Controle de movimentações</h3>
+          <p>Gerencia entradas, saídas e transferências entre ruas do estoque.</p>
+        </article>
+        <article class="card">
+          <h3>Dashboard</h3>
+          <p>Indicadores visuais para facilitar análise do nível de estoque e movimentações.</p>
+        </article>
+        <article class="card">
+          <h3>Autenticação</h3>
+          <p>Login com diferentes permissões e proteção de acesso por perfil.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="tecnologias">
+      <h2>Tecnologias</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Python</h3>
+          <p>Backend principal da aplicação.</p>
+        </article>
+        <article class="card">
+          <h3>Flask</h3>
+          <p>Framework web para rotas, autenticação e regras de negócio.</p>
+        </article>
+        <article class="card">
+          <h3>SQLite</h3>
+          <p>Banco relacional local para persistência dos dados.</p>
+        </article>
+        <article class="card">
+          <h3>Jinja2 + HTML</h3>
+          <p>Renderização das telas e integração com templates.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer id="contato">
+    <p>TechStock — Projeto integrador Full Stack Python</p>
+    <p><a href="https://github.com" target="_blank" rel="noreferrer">GitHub do projeto</a></p>
+  </footer>
+</body>
+</html>

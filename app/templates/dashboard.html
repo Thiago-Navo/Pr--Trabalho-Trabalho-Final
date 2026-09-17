@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block titulo %}Dashboard — Sistema de Estoque{% endblock %}
+
+{% block busca %}
+  <i class="bi bi-search"></i>
+  <form method="get" action="{{ url_for('produtos') }}" style="display:flex; flex:1;">
+    <input type="text" name="q" placeholder="Pesquisar produto, SKU ou categoria...">
+  </form>
+{% endblock %}
+
+{% block conteudo %}
+  <div class="page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p>Visão geral do estoque em tempo real</p>
+    </div>
+    <a href="{{ url_for('movimentacoes') }}" class="btn-primary-custom">
+      <i class="bi bi-plus-lg"></i> Registrar movimentação
+    </a>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon"><i class="bi bi-box-seam"></i></div>
+      <div class="kpi-label">Produtos cadastrados</div>
+      <div class="kpi-value">{{ total_produtos }}</div>
+      <div class="kpi-sub">Em {{ total_categorias }} categoria{{ 's' if total_categorias != 1 }}</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="kpi-label">Estoque baixo</div>
+      <div class="kpi-value">{{ estoque_baixo }}</div>
+      <div class="kpi-sub">Abaixo do mínimo definido</div>
+    </div>
+    <div class="kpi-card success">
+      <div class="kpi-icon"><i class="bi bi-box-arrow-in-down"></i></div>
+      <div class="kpi-label">Entradas (7 dias)</div>
+      <div class="kpi-value">{{ entradas_7d }}</div>
+      <div class="kpi-sub">Itens recebidos</div>
+    </div>
+    <div class="kpi-card warning">
+      <div class="kpi-icon"><i class="bi bi-box-arrow-up"></i></div>
+      <div class="kpi-label">Saídas (7 dias)</div>
+      <div class="kpi-value">{{ saidas_7d }}</div>
+      <div class="kpi-sub">Itens despachados</div>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <div class="chart-card">
+      <div class="card-panel-head"><h2>Movimentações dos últimos 7 dias</h2></div>
+      <div class="chart-canvas-wrap">
+        <canvas id="graficoMovimentacoes"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="card-panel-head"><h2>Itens por categoria</h2></div>
+      <div class="chart-canvas-wrap">
+        <canvas id="graficoCategorias"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-panel">
+    <div class="card-panel-head">
+      <h2>Produtos que precisam de atenção</h2>
+      <a href="{{ url_for('produtos') }}" class="btn-ghost">Ver todos os produtos</a>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table-custom">
+        <thead>
+          <tr><th>Produto</th><th>Categoria</th><th>Nível de estoque</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for p in em_atencao %}
+          {% set max_val = p.estoque_max if p.estoque_max else 1 %}
+          {% set pct = ((p.qtd_total / max_val) * 100) | round | int %}
+          {% set pct = 100 if pct > 100 else pct %}
+          {% set status = 'low' if p.qtd_total <= p.estoque_min else 'warning' %}
+          <tr>
+            <td>
+              <div style="font-weight:600;">{{ p.nome }}</div>
+              <div class="sku">{{ p.sku }}</div>
+            </td>
+            <td>{{ p.categoria }}</td>
+            <td>
+              <div class="stock-level {{ 'is-low' if status == 'low' else 'is-warning' }}">
+                <div class="bar-track"><div class="bar-fill" style="width:{{ pct }}%"></div></div>
+                <span class="qtd">{{ p.qtd_total }}/{{ p.estoque_max }}</span>
+              </div>
+            </td>
+            <td>
+              {% if status == 'low' %}
+                <span class="badge-tag danger">Estoque baixo</span>
+              {% else %}
+                <span class="badge-tag warning">Atenção</span>
+              {% endif %}
+            </td>
+            <td class="row-actions">
+              {% if papel_logado == 'admin' %}
+              <button type="button" title="Editar" class="btn-editar-produto"
+                      data-id="{{ p.id }}" data-nome="{{ p.nome }}" data-min="{{ p.estoque_min }}" data-max="{{ p.estoque_max }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="{{ url_for('excluir_produto', produto_id=p.id) }}"
+                    class="form-confirmar-exclusao" style="display:inline;"
+                    data-confirmar-titulo="Excluir produto"
+                    data-confirmar-mensagem="Tem certeza que deseja excluir “{{ p.nome }}”? Essa ação não pode ser desfeita.">
+                <button title="Excluir" type="submit"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center; color:var(--color-text-muted); padding:24px;">Nenhum produto em atenção.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de edição rápida (nome / mínimo / máximo) -->
+  <div class="modal fade" id="modalEditarProduto" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content" style="border-radius:12px; border:none;">
+        <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
+          <h5 class="modal-title" style="font-family:var(--font-display);">Editar produto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form id="formEditarProduto" method="post" action="">
+          <div class="modal-body">
+            <div class="form-field">
+              <label for="eNome">Nome do produto</label>
+              <input type="text" id="eNome" name="nome" required>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <div class="form-field"><label for="eMin">Estoque mín.</label><input type="number" id="eMin" name="estoque_min" min="0" required></div>
+              </div>
+              <div class="col-6">
+                <div class="form-field"><label for="eMax">Estoque máx.</label><input type="number" id="eMax" name="estoque_max" min="0" required></div>
+              </div>
+            </div>
+            <p class="hint">SKU e categoria não podem ser alterados por aqui, pois isso poderia quebrar a trava de tipo das ruas.</p>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-primary-custom">Salvar alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const dadosMovimentacoes = {{ serie_movimentacoes | tojson }};
+  initGraficoMovimentacoesServidor("graficoMovimentacoes", dadosMovimentacoes);
+
+  const dadosCategoria = {
+    labels: {{ por_categoria | map(attribute='categoria') | list | tojson }},
+    valores: {{ por_categoria | map(attribute='total') | list | tojson }},
+  };
+  initGraficoCategoriasServidor("graficoCategorias", dadosCategoria);
+
+  function abrirEdicaoProduto(id, nome, min, max) {
+    const form = document.getElementById("formEditarProduto");
+    form.action = `/produtos/${id}/editar`;
+    document.getElementById("eNome").value = nome;
+    document.getElementById("eMin").value = min;
+    document.getElementById("eMax").value = max;
+    new bootstrap.Modal(document.getElementById("modalEditarProduto")).show();
+  }
+
+  document.querySelectorAll(".btn-editar-produto").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      abrirEdicaoProduto(btn.dataset.id, btn.dataset.nome, Number(btn.dataset.min), Number(btn.dataset.max));
+    });
+  });
+</script>
+{% endblock %}
