@@ -5,7 +5,7 @@ from functools import wraps
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, session, flash, jsonify, g
+    url_for, session, flash, jsonify, g, Response
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -193,11 +193,16 @@ def logout():
     return redirect(url_for("login"))
 
 
+@front_bp.route("/", endpoint="home")
+def home():
+    return redirect(url_for("dashboard"))
+
+
 # --------------------------------------------------------------------------
 # Dashboard
 # --------------------------------------------------------------------------
 
-@front_bp.route("/", endpoint="dashboard")
+@front_bp.route("/dashboard", endpoint="dashboard")
 @login_required
 def dashboard():
     db = get_db()
@@ -266,6 +271,68 @@ def dashboard():
         entradas_7d=sum(serie_entradas),
         saidas_7d=sum(serie_saidas),
     )
+
+
+@front_bp.route("/exportar-relatorio", endpoint="exportar_relatorio")
+@login_required
+def exportar_relatorio():
+    db = get_db()
+
+    total_produtos = db.execute("SELECT COUNT(*) AS n FROM produtos").fetchone()["n"]
+    total_categorias = db.execute("SELECT COUNT(DISTINCT categoria) AS n FROM produtos").fetchone()["n"]
+    estoque_baixo = db.execute("""
+        SELECT COUNT(*) AS n
+        FROM (
+            SELECT p.id
+            FROM produtos p
+            LEFT JOIN estoque e ON e.produto_id = p.id
+            GROUP BY p.id
+            HAVING COALESCE(SUM(e.quantidade), 0) <= p.estoque_min
+        )
+    """).fetchone()["n"]
+    por_categoria = db.execute("""
+        SELECT p.categoria AS categoria, COALESCE(SUM(e.quantidade), 0) AS total
+        FROM produtos p
+        LEFT JOIN estoque e ON e.produto_id = p.id
+        GROUP BY p.categoria
+        ORDER BY total DESC
+    """).fetchall()
+
+    itens = []
+    for row in por_categoria:
+        itens.append(f"<tr><td>{row['categoria'] or 'Sem categoria'}</td><td>{row['total']}</td></tr>")
+
+    html = f"""<!doctype html>
+    <html lang=\"pt-BR\">
+    <head>
+        <meta charset=\"utf-8\">
+        <title>Relatório Standalone</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 32px; color: #1f2937; }}
+            h1 {{ color: #0f172a; }}
+            .cards {{ display: flex; gap: 16px; flex-wrap: wrap; }}
+            .card {{ border: 1px solid #dbe3ef; border-radius: 12px; padding: 16px 20px; min-width: 180px; background: #f8fafc; }}
+            table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+            th, td {{ border: 1px solid #dbe3ef; padding: 10px; text-align: left; }}
+            th {{ background: #e2e8f0; }}
+        </style>
+    </head>
+    <body>
+        <h1>Relatório Standalone - TechStock</h1>
+        <p>Resumo do estoque gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+        <div class=\"cards\">
+            <div class=\"card\"><strong>Produtos:</strong><br>{total_produtos}</div>
+            <div class=\"card\"><strong>Categorias:</strong><br>{total_categorias}</div>
+            <div class=\"card\"><strong>Estoque baixo:</strong><br>{estoque_baixo}</div>
+        </div>
+        <table>
+            <thead><tr><th>Categoria</th><th>Quantidade</th></tr></thead>
+            <tbody>{''.join(itens) if itens else '<tr><td colspan="2">Nenhuma categoria cadastrada.</td></tr>'}</tbody>
+        </table>
+    </body>
+    </html>"""
+
+    return Response(html, mimetype="text/html")
 
 
 # --------------------------------------------------------------------------

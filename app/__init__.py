@@ -29,8 +29,20 @@ def create_app() -> Flask:
     # Auto-inicializa o banco e seed se for a primeira vez rodando no PC
     init_database_if_needed()
 
+    @app.teardown_appcontext
+    def fechar_conexao_db(exc):
+        database.close_connection(exc)
+
     app.register_blueprint(front_bp)
     app.register_blueprint(api_bp)
+
+    @app.errorhandler(404)
+    def erro_404(error):
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def erro_500(error):
+        return render_template("errors/500.html"), 500
 
     def handle_build_error(error, endpoint, values):
         if f"front.{endpoint}" in current_app.view_functions:
