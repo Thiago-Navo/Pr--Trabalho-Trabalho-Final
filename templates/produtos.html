@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+{% block titulo %}Produtos — Sistema de Estoque{% endblock %}
+
+{% block busca %}
+  <i class="bi bi-search"></i>
+  <form method="get" action="{{ url_for('produtos') }}" style="display:flex; flex:1;">
+    <input type="text" name="q" value="{{ termo }}" placeholder="Pesquisar por nome, categoria ou SKU...">
+  </form>
+{% endblock %}
+
+{% block conteudo %}
+  <div class="page-header">
+    <div>
+      <h1>Produtos</h1>
+      <p>Cadastre, pesquise e acompanhe os componentes do estoque</p>
+    </div>
+    <button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#modalProduto">
+      <i class="bi bi-plus-lg"></i> Novo produto
+    </button>
+  </div>
+
+  {% if not tem_ruas %}
+  <div class="flash-msg flash-warning" style="margin-bottom:16px;">
+    Você ainda não tem nenhuma rua cadastrada. Não tem problema: dá para cadastrar o produto
+    mesmo assim (escolha "Sem rua por enquanto" ou crie uma rua nova direto no formulário).
+  </div>
+  {% endif %}
+
+  {% if papel_logado == 'admin' %}
+  <div class="card-panel" style="margin-bottom:16px;">
+    <div class="card-panel-head">
+      <h2>Categorias disponíveis</h2>
+      <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ categorias|length }} categoria(s)</span>
+    </div>
+    <p class="hint" style="margin-top:0;">
+      Estas são as categorias que aparecem na lista quando alguém cadastra um produto.
+      Ninguém digita categoria à mão — só escolhe uma daqui. Se faltar alguma, cadastre abaixo.
+    </p>
+
+    <div class="lista-categorias">
+      {% for c in categorias %}
+        {% set em_uso = uso_categorias.get(c.nome, 0) %}
+        <span class="chip-categoria">
+          {{ c.nome }}
+          {% if em_uso %}<small>{{ em_uso }}</small>{% endif %}
+          <form method="post" action="{{ url_for('excluir_categoria', categoria_id=c.id) }}"
+                class="form-confirmar-exclusao" style="display:inline;"
+                data-confirmar-titulo="Remover categoria"
+                data-confirmar-mensagem="Remover a categoria “{{ c.nome }}” da lista? Produtos já cadastrados não são afetados.">
+            <button type="submit" title="Remover da lista"><i class="bi bi-x"></i></button>
+          </form>
+        </span>
+      {% else %}
+        <span style="color:var(--color-text-muted); font-size:0.85rem;">Nenhuma categoria cadastrada.</span>
+      {% endfor %}
+    </div>
+
+    {% set rc = rascunho_de('categoria') %}
+    <form id="formCategoria" method="post" action="{{ url_for('nova_categoria') }}" class="form-nova-categoria">
+      <input type="text" name="nome" placeholder="Nova categoria (ex: Webcam)" required minlength="2"
+             value="{{ rc.get('nome', '') }}">
+      <button type="submit" class="btn-primary-custom"><i class="bi bi-plus-lg"></i> Adicionar</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card-panel">
+    <div class="card-panel-head">
+      <h2>Todos os produtos</h2>
+      <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ produtos|length }} produto(s)</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table-custom">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Categoria</th>
+            <th>Localização</th>
+            <th>Nível de estoque</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in produtos %}
+          {% set max_val = p.estoque_max if p.estoque_max else 1 %}
+          {% set pct = ((p.qtd_total / max_val) * 100) | round | int %}
+          {% set pct = 100 if pct > 100 else pct %}
+          {% set status = 'low' if p.qtd_total <= p.estoque_min else ('warning' if p.qtd_total <= p.estoque_min * 1.5 else 'ok') %}
+          <tr>
+            <td>
+              <div style="font-weight:600;">{{ p.nome }}</div>
+              <div class="sku">{{ p.sku }}</div>
+            </td>
+            <td>{{ p.categoria }}</td>
+            <td style="font-size:0.82rem;">
+              {% for loc in localizacoes.get(p.id, []) %}
+                <div>{{ loc.nome }}: <strong>{{ loc.quantidade }}</strong></div>
+              {% else %}
+                <span style="color:var(--color-text-muted);">sem estoque</span>
+              {% endfor %}
+            </td>
+            <td>
+              <div class="stock-level {{ 'is-low' if status == 'low' else ('is-warning' if status == 'warning' else '') }}">
+                <div class="bar-track"><div class="bar-fill" style="width:{{ pct }}%"></div></div>
+                <span class="qtd">{{ p.qtd_total }}/{{ p.estoque_max }}</span>
+              </div>
+            </td>
+            <td>
+              {% if status == 'low' %}
+                <span class="badge-tag danger">Estoque baixo</span>
+              {% elif status == 'warning' %}
+                <span class="badge-tag warning">Atenção</span>
+              {% else %}
+                <span class="badge-tag ok">Normal</span>
+              {% endif %}
+            </td>
+            <td class="row-actions">
+              {% if papel_logado == 'admin' %}
+              <button type="button" title="Editar nome, categoria ou quantidade do produto" class="btn-editar-produto"
+                      data-id="{{ p.id }}" data-nome="{{ p.nome }}" data-categoria="{{ p.categoria }}" data-min="{{ p.estoque_min }}" data-max="{{ p.estoque_max }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="{{ url_for('excluir_produto', produto_id=p.id) }}"
+                    class="form-confirmar-exclusao" style="display:inline;"
+                    data-confirmar-titulo="Excluir produto"
+                    data-confirmar-mensagem="Tem certeza que deseja excluir “{{ p.nome }}”? Essa ação não pode ser desfeita.">
+                <button title="Excluir" type="submit"><i class="bi bi-trash"></i></button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center; color:var(--color-text-muted); padding:24px;">Nenhum produto encontrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% set rp = rascunho_de('produto') %}
+  <!-- data-bs-keyboard="false" + backdrop estático: o Esc e o clique fora
+       não fecham mais o formulário no meio do preenchimento. Para sair é
+       preciso clicar em "Cancelar" ou no X — e mesmo assim o que foi
+       digitado fica guardado e volta quando o modal é reaberto. -->
+  <div class="modal fade" id="modalProduto" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content" style="border-radius:12px; border:none;">
+        <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
+          <h5 class="modal-title" style="font-family:var(--font-display);">Novo produto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form id="formProduto" method="post" action="{{ url_for('novo_produto') }}">
+          <div class="modal-body">
+            <div class="form-field">
+              <label for="pNome">Nome do produto</label>
+              <input type="text" id="pNome" name="nome" required placeholder="Ex: Memória RAM DDR4 8GB"
+                     value="{{ rp.get('nome', '') }}">
+            </div>
+            <div class="form-field">
+              <label for="pSku">Código (SKU)</label>
+              <input type="text" id="pSku" name="sku" required placeholder="Ex: MEM-DDR4-8G"
+                     value="{{ rp.get('sku', '') }}">
+            </div>
+            <div class="form-field">
+              <label for="pCategoria">Categoria / tipo</label>
+              <select id="pCategoria" name="categoria" required>
+                <option value="" disabled {{ 'selected' if not rp.get('categoria') }}>Escolha a categoria...</option>
+                {% for c in categorias %}
+                <option value="{{ c.nome }}" {{ 'selected' if rp.get('categoria') == c.nome }}>{{ c.nome }}</option>
+                {% endfor %}
+                {% if papel_logado == 'admin' %}
+                <option value="__nova__" {{ 'selected' if rp.get('categoria') == '__nova__' }}>+ Criar categoria nova...</option>
+                {% endif %}
+              </select>
+              <p class="hint" id="hintCategoria">
+                A categoria vem de uma lista fixa, para não haver erro de digitação.
+                {% if papel_logado == 'admin' %}Faltou alguma? Escolha "+ Criar categoria nova..." acima.
+                {% else %}Faltou alguma? Peça a um administrador para incluir na lista.{% endif %}
+              </p>
+            </div>
+            <div class="form-field" id="wrapCategoriaNova" style="display:none;">
+              <label for="pCategoriaNova">Nome da nova categoria</label>
+              <input type="text" id="pCategoriaNova" name="nova_categoria" minlength="2"
+                     placeholder="Ex: Webcam" value="{{ rp.get('nova_categoria', '') }}">
+            </div>
+
+            <div class="form-field">
+              <label for="pRua">Rua onde será guardado</label>
+              <select id="pRua" name="rua_id">
+                <option value="" {{ 'selected' if not rp.get('rua_id') or rp.get('rua_id') == '' }}>Sem rua por enquanto</option>
+                {% for r in ruas %}
+                <option value="{{ r.id }}" data-tipo="{{ r.tipo or '' }}" {{ 'selected' if rp.get('rua_id') == r.id|string }}>
+                  {{ r.nome }}{{ ' — ' + r.tipo if r.tipo else ' — livre' }}
+                </option>
+                {% endfor %}
+                <option value="__nova__" {{ 'selected' if rp.get('rua_id') == '__nova__' }}>+ Criar rua nova...</option>
+              </select>
+              <p class="hint" id="avisoRua">
+                Opcional: dá para cadastrar o produto sem escolher rua agora e guardar o estoque
+                depois, pela tela de Entradas.
+              </p>
+            </div>
+            <div class="form-field" id="wrapRuaNova" style="display:none;">
+              <label for="pRuaNova">Nome da nova rua</label>
+              <input type="text" id="pRuaNova" name="nova_rua" minlength="2"
+                     placeholder="Ex: Rua A1" value="{{ rp.get('nova_rua', '') }}">
+            </div>
+
+            <div class="row g-2">
+              <div class="col-4" id="colQtdInicial">
+                <div class="form-field"><label for="pQtd">Qtd. inicial</label><input type="number" id="pQtd" name="qtd" min="0" value="{{ rp.get('qtd', '') }}"></div>
+              </div>
+              <div class="col-4">
+                <div class="form-field"><label for="pMin">Estoque mín.</label><input type="number" id="pMin" name="estoque_min" min="0" required value="{{ rp.get('estoque_min', '') }}"></div>
+              </div>
+              <div class="col-4">
+                <div class="form-field"><label for="pMax">Estoque máx.</label><input type="number" id="pMax" name="estoque_max" min="0" required value="{{ rp.get('estoque_max', '') }}"></div>
+              </div>
+            </div>
+            <p class="hint">Uma rua só aceita um tipo de produto. Se ela já tiver categoria travada, você só pode guardar produtos dessa mesma categoria.</p>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-limpar-rascunho title="Apaga tudo que foi digitado neste formulário">Limpar formulário</button>
+            <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-primary-custom">Salvar produto</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de edição rápida (nome / mínimo / máximo) -->
+  <div class="modal fade" id="modalEditarProduto" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content" style="border-radius:12px; border:none;">
+        <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
+          <h5 class="modal-title" style="font-family:var(--font-display);">Editar produto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form id="formEditarProduto" method="post" action="">
+          <div class="modal-body">
+            <div class="form-field">
+              <label for="eNome">Nome do produto</label>
+              <input type="text" id="eNome" name="nome" required>
+            </div>
+            <div class="form-field">
+              <label for="eCategoria">Categoria / tipo</label>
+              <select id="eCategoria" name="categoria" required>
+                {% for c in categorias %}
+                <option value="{{ c.nome }}">{{ c.nome }}</option>
+                {% endfor %}
+              </select>
+              <p class="hint" id="avisoEditarCategoria"></p>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <div class="form-field"><label for="eMin">Estoque mín.</label><input type="number" id="eMin" name="estoque_min" min="0" required></div>
+              </div>
+              <div class="col-6">
+                <div class="form-field"><label for="eMax">Estoque máx.</label><input type="number" id="eMax" name="estoque_max" min="0" required></div>
+              </div>
+            </div>
+            <p class="hint">SKU não pode ser alterado por aqui. Trocar a categoria é permitido, mas é bloqueado se o produto dividir uma rua com outro produto de categoria diferente — nesse caso, retire o saldo de um dos dois antes.</p>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-primary-custom">Salvar alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Avisa em tempo real qual categoria a rua escolhida já aceita, e mostra
+  // o campo certo quando a pessoa escolhe "+ Criar nova..." no select de
+  // categoria ou de rua (a rua também pode ficar "Sem rua por enquanto").
+  const selectRua = document.getElementById("pRua");
+  const selectCategoria = document.getElementById("pCategoria");
+  const aviso = document.getElementById("avisoRua");
+  const wrapRuaNova = document.getElementById("wrapRuaNova");
+  const inputRuaNova = document.getElementById("pRuaNova");
+  const wrapCategoriaNova = document.getElementById("wrapCategoriaNova");
+  const inputCategoriaNova = document.getElementById("pCategoriaNova");
+  const colQtdInicial = document.getElementById("colQtdInicial");
+  const inputQtd = document.getElementById("pQtd");
+
+  const AVISO_SEM_RUA = "Opcional: dá para cadastrar o produto sem escolher rua agora e guardar o estoque depois, pela tela de Entradas.";
+  const AVISO_RUA_NOVA = "Essa rua ainda não existe — ela será criada e vai travar no tipo do produto que você cadastrar.";
+
+  function atualizarAvisoRua() {
+    if (!selectRua) return;
+    const valor = selectRua.value;
+
+    // campo "nova rua" só aparece quando a opção escolhida é "+ Criar rua nova..."
+    const ehNova = valor === "__nova__";
+    if (wrapRuaNova) wrapRuaNova.style.display = ehNova ? "" : "none";
+    if (inputRuaNova) inputRuaNova.required = ehNova;
+
+    // quantidade inicial só faz sentido se uma rua (existente ou nova) foi escolhida
+    const temRua = valor !== "";
+    if (colQtdInicial) colQtdInicial.style.opacity = temRua ? "1" : "0.5";
+    if (inputQtd) inputQtd.disabled = !temRua;
+
+    if (!temRua) {
+      aviso.textContent = AVISO_SEM_RUA;
+    } else if (ehNova) {
+      aviso.textContent = AVISO_RUA_NOVA;
+    } else {
+      const opt = selectRua.selectedOptions[0];
+      const tipo = opt ? opt.dataset.tipo : "";
+      if (tipo) {
+        aviso.textContent = `Essa rua só aceita produtos do tipo "${tipo}".`;
+      } else {
+        aviso.textContent = "Essa rua está livre e vai travar no tipo do produto que você cadastrar.";
+      }
+    }
+  }
+  if (selectRua) {
+    selectRua.addEventListener("change", atualizarAvisoRua);
+  }
+
+  function atualizarCategoriaNova() {
+    if (!selectCategoria) return;
+    const ehNova = selectCategoria.value === "__nova__";
+    if (wrapCategoriaNova) wrapCategoriaNova.style.display = ehNova ? "" : "none";
+    if (inputCategoriaNova) inputCategoriaNova.required = ehNova;
+  }
+  if (selectCategoria) {
+    selectCategoria.addEventListener("change", atualizarCategoriaNova);
+  }
+
+  function abrirEdicaoProduto(id, nome, categoria, min, max) {
+    const form = document.getElementById("formEditarProduto");
+    form.action = `/produtos/${id}/editar`;
+    document.getElementById("eNome").value = nome;
+    if (categoria) document.getElementById("eCategoria").value = categoria;
+    document.getElementById("eMin").value = min;
+    document.getElementById("eMax").value = max;
+    new bootstrap.Modal(document.getElementById("modalEditarProduto")).show();
+  }
+
+  document.querySelectorAll(".btn-editar-produto").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      abrirEdicaoProduto(btn.dataset.id, btn.dataset.nome, btn.dataset.categoria, Number(btn.dataset.min), Number(btn.dataset.max));
+    });
+  });
+
+  /* ---- Nada do que for digitado se perde ----
+     O servidor já devolve os campos preenchidos quando recusa o cadastro;
+     o Rascunho cuida do resto (fechou o modal, trocou de tela, recarregou
+     a página). O modal também reabre sozinho quando houve erro. */
+  Rascunho.ligar("#formProduto", "produto", {
+    concluido: {{ 'true' if rascunho_concluido == 'produto' else 'false' }},
+    modal: "#modalProduto",
+    abrir: {{ 'true' if rascunho_chave == 'produto' else 'false' }}
+  });
+
+  Rascunho.ligar("#formCategoria", "categoria", {
+    concluido: {{ 'true' if rascunho_concluido == 'categoria' else 'false' }}
+  });
+
+  // Se a edição de um produto foi recusada, reabre o modal já preenchido.
+  {% if rascunho_chave == 'editar_produto' %}
+  {% set re_ = rascunho_de('editar_produto') %}
+  abrirEdicaoProduto(
+    "{{ rascunho_extra('editar_produto').get('produto_id', '') }}",
+    {{ re_.get('nome', '') | tojson }},
+    {{ re_.get('categoria', '') | tojson }},
+    {{ re_.get('estoque_min', '') | tojson }},
+    {{ re_.get('estoque_max', '') | tojson }}
+  );
+  {% endif %}
+
+  atualizarAvisoRua();
+  atualizarCategoriaNova();
+</script>
+
+{% endblock %}
