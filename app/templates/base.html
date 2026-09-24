@@ -99,7 +99,13 @@
           </button>
           <div class="user-chip">
             <div class="avatar">{{ (usuario_logado or '?')[:2] | upper }}</div>
-            <span>{{ usuario_logado }}</span>
+            <span style="font-weight: 500;">{{ usuario_logado }}</span>
+            {% set eh_admin = (papel_logado == 'admin' or papel_logado in ['Administrador', 'Administradora']) %}
+            <span class="user-role-badge {{ 'user-role-admin' if eh_admin else 'user-role-operador' }}"
+                  title="Perfil de acesso: {{ 'Administrador' if eh_admin else 'Operador' }}">
+              <i class="bi {{ 'bi-shield-check' if eh_admin else 'bi-person-badge' }}"></i>
+              {{ 'Admin' if eh_admin else 'Operador' }}
+            </span>
           </div>
         </div>
       </header>

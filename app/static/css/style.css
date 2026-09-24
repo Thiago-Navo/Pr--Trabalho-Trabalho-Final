@@ -264,6 +264,43 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   font-size: 0.85rem;
 }
 
+.user-role-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+}
+
+.user-role-admin {
+  background: rgba(14, 165, 160, 0.12);
+  color: #0B8783;
+  border: 1px solid rgba(14, 165, 160, 0.35);
+}
+
+[data-theme="dark"] .user-role-admin {
+  background: rgba(14, 165, 160, 0.22);
+  color: #2DD4BF;
+  border-color: rgba(45, 212, 191, 0.45);
+}
+
+.user-role-operador {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+[data-theme="dark"] .user-role-operador {
+  background: rgba(148, 163, 184, 0.18);
+  color: #CBD5E1;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
 .avatar {
   width: 34px; height: 34px;
   border-radius: 50%;
