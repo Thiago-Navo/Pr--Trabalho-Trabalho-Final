@@ -1,0 +1,53 @@
+{% macro render_paginacao(paginacao) %}
+{% if paginacao and paginacao.total_paginas > 1 %}
+<div class="pagination-wrapper">
+  <div class="pagination-info">
+    Exibindo <strong>{{ paginacao.inicio_registro }}</strong> a <strong>{{ paginacao.fim_registro }}</strong> de <strong>{{ paginacao.total_itens }}</strong> registros
+  </div>
+  <nav class="pagination-nav" aria-label="Navegação entre páginas">
+    <ul class="pagination-list">
+      <!-- Botão Anterior -->
+      <li class="page-item {{ 'disabled' if not paginacao.tem_anterior }}">
+        {% if paginacao.tem_anterior %}
+          <a class="page-link" href="{{ url_para_pagina(paginacao.pagina_anterior) }}" aria-label="Página anterior">
+            <i class="bi bi-chevron-left"></i> Anterior
+          </a>
+        {% else %}
+          <span class="page-link"><i class="bi bi-chevron-left"></i> Anterior</span>
+        {% endif %}
+      </li>
+
+      <!-- Páginas numeradas -->
+      {% for p in paginacao.range_paginas %}
+        {% if p == '...' %}
+          <li class="page-item disabled"><span class="page-link dots">...</span></li>
+        {% elif p == paginacao.pagina %}
+          <li class="page-item active" aria-current="page"><span class="page-link">{{ p }}</span></li>
+        {% else %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_para_pagina(p) }}">{{ p }}</a>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      <!-- Botão Próximo -->
+      <li class="page-item {{ 'disabled' if not paginacao.tem_proximo }}">
+        {% if paginacao.tem_proximo %}
+          <a class="page-link" href="{{ url_para_pagina(paginacao.proxima_pagina) }}" aria-label="Próxima página">
+            Próximo <i class="bi bi-chevron-right"></i>
+          </a>
+        {% else %}
+          <span class="page-link">Próximo <i class="bi bi-chevron-right"></i></span>
+        {% endif %}
+      </li>
+    </ul>
+  </nav>
+</div>
+{% elif paginacao and paginacao.total_itens > 0 %}
+<div class="pagination-wrapper pagination-single-page">
+  <div class="pagination-info">
+    Exibindo todos os <strong>{{ paginacao.total_itens }}</strong> registros cadastrados
+  </div>
+</div>
+{% endif %}
+{% endmacro %}

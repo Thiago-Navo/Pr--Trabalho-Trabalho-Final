@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/paginacao.html" import render_paginacao with context %}
 {% block titulo %}Produtos — Sistema de Estoque{% endblock %}
 
 {% block busca %}
@@ -67,7 +68,7 @@
   <div class="card-panel">
     <div class="card-panel-head">
       <h2>Todos os produtos</h2>
-      <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ produtos|length }} produto(s)</span>
+      <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ paginacao.total_itens if paginacao else produtos|length }} produto(s)</span>
     </div>
     <div style="overflow-x:auto;">
       <table class="table-custom">
@@ -136,6 +137,9 @@
         </tbody>
       </table>
     </div>
+    {% if paginacao %}
+      {{ render_paginacao(paginacao) }}
+    {% endif %}
   </div>
 
   {% set rp = rascunho_de('produto') %}

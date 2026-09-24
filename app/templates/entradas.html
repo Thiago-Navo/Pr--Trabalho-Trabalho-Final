@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/paginacao.html" import render_paginacao with context %}
 {% block titulo %}Entradas — Sistema de Estoque{% endblock %}
 
 {% block busca %}
@@ -53,7 +54,7 @@
       <div class="card-panel">
         <div class="card-panel-head">
           <h2>Histórico</h2>
-          <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ historico|length }} registro(s)</span>
+          <span style="font-size:0.8rem; color:var(--color-text-muted);">{{ paginacao.total_itens if paginacao else historico|length }} registro(s)</span>
         </div>
         <div style="overflow-x:auto;">
           <table class="table-custom" id="tabelaEntradas">
@@ -82,6 +83,9 @@
             </tbody>
           </table>
         </div>
+        {% if paginacao %}
+          {{ render_paginacao(paginacao) }}
+        {% endif %}
       </div>
     </div>
   </div>

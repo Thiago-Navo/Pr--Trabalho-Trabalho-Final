@@ -1134,3 +1134,95 @@ html.nav-carregando::before {
   font-size: 0.88rem;
 }
 .form-nova-categoria .btn-primary-custom { white-space: nowrap; }
+
+/* ==========================================================================
+   PAGINAÇÃO MODERNA TECHSTOCK
+   ========================================================================== */
+.pagination-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.pagination-single-page {
+  justify-content: center;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.pagination-info strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.pagination-nav {
+  display: flex;
+  align-items: center;
+}
+
+.pagination-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pagination-list .page-item {
+  display: inline-block;
+}
+
+.pagination-list .page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.pagination-list .page-link:hover:not(.dots) {
+  background: var(--color-border);
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.pagination-list .page-item.active .page-link {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  border-color: var(--color-primary);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(14, 165, 160, 0.25);
+}
+
+.pagination-list .page-item.disabled .page-link {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.pagination-list .page-link.dots {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+  color: var(--color-text-muted);
+}
+
