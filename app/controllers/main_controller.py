@@ -1,4 +1,6 @@
 import os
+import json
+import logging
 import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
@@ -10,6 +12,10 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.database import database
+from app.models.produto import Produto
+from app.repositories.produto_repository import ProdutoRepository
+
+logger = logging.getLogger("techstock.controller")
 
 front_bp = Blueprint("front", __name__)
 
@@ -96,8 +102,13 @@ def login():
             valida = False
             if senha_hash and str(senha_hash).startswith(("scrypt:", "pbkdf2:")):
                 valida = check_password_hash(senha_hash, senha)
-            elif senha_hash:
-                valida = (senha_hash == senha)
+            elif senha_hash and senha_hash == senha:
+                # Migra senha em texto plano legado para hash forte
+                valida = True
+                novo_hash = generate_password_hash(senha)
+                db.execute("UPDATE usuarios SET senha_hash = ?, senha = NULL WHERE id = ?", (novo_hash, r["id"]))
+                db.commit()
+                logger.info(f"Senha do usuário '{usuario}' migrada com sucesso para hash.")
 
             if valida:
                 session.clear()
@@ -277,62 +288,293 @@ def dashboard():
 @login_required
 def exportar_relatorio():
     db = get_db()
+    repo = ProdutoRepository(db)
+    saldos = repo.obter_saldos_detalhados()
 
-    total_produtos = db.execute("SELECT COUNT(*) AS n FROM produtos").fetchone()["n"]
-    total_categorias = db.execute("SELECT COUNT(DISTINCT categoria) AS n FROM produtos").fetchone()["n"]
-    estoque_baixo = db.execute("""
-        SELECT COUNT(*) AS n
-        FROM (
-            SELECT p.id
-            FROM produtos p
-            LEFT JOIN estoque e ON e.produto_id = p.id
-            GROUP BY p.id
-            HAVING COALESCE(SUM(e.quantidade), 0) <= p.estoque_min
-        )
-    """).fetchone()["n"]
-    por_categoria = db.execute("""
-        SELECT p.categoria AS categoria, COALESCE(SUM(e.quantidade), 0) AS total
-        FROM produtos p
-        LEFT JOIN estoque e ON e.produto_id = p.id
-        GROUP BY p.categoria
-        ORDER BY total DESC
-    """).fetchall()
+    total_produtos = len(saldos)
+    categorias = sorted(list({s["produto"].categoria or "Geral" for s in saldos}))
+    total_categorias = len(categorias)
+    criticos = sum(1 for s in saldos if s["status"] == "CRITICO")
+    atencao = sum(1 for s in saldos if s["status"] == "ATENCAO")
+    data_geracao = datetime.now().strftime("%d/%m/%Y às %H:%M")
 
-    itens = []
-    for row in por_categoria:
-        itens.append(f"<tr><td>{row['categoria'] or 'Sem categoria'}</td><td>{row['total']}</td></tr>")
+    # Serializa todos os produtos para injeção JSON direta no HTML gerado
+    produtos_json = json.dumps([
+        {
+            "id": s["produto"].id,
+            "nome": s["produto"].nome,
+            "sku": s["produto"].sku,
+            "categoria": s["produto"].categoria or "Geral",
+            "qtd": s["qtd_total"],
+            "min": s["produto"].estoque_min,
+            "max": s["produto"].estoque_max,
+            "status": s["status"],
+            "preco": s["produto"].preco_formatado,
+        }
+        for s in saldos
+    ], ensure_ascii=False)
 
     html = f"""<!doctype html>
-    <html lang=\"pt-BR\">
-    <head>
-        <meta charset=\"utf-8\">
-        <title>Relatório Standalone</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 32px; color: #1f2937; }}
-            h1 {{ color: #0f172a; }}
-            .cards {{ display: flex; gap: 16px; flex-wrap: wrap; }}
-            .card {{ border: 1px solid #dbe3ef; border-radius: 12px; padding: 16px 20px; min-width: 180px; background: #f8fafc; }}
-            table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
-            th, td {{ border: 1px solid #dbe3ef; padding: 10px; text-align: left; }}
-            th {{ background: #e2e8f0; }}
-        </style>
-    </head>
-    <body>
-        <h1>Relatório Standalone - TechStock</h1>
-        <p>Resumo do estoque gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
-        <div class=\"cards\">
-            <div class=\"card\"><strong>Produtos:</strong><br>{total_produtos}</div>
-            <div class=\"card\"><strong>Categorias:</strong><br>{total_categorias}</div>
-            <div class=\"card\"><strong>Estoque baixo:</strong><br>{estoque_baixo}</div>
-        </div>
-        <table>
-            <thead><tr><th>Categoria</th><th>Quantidade</th></tr></thead>
-            <tbody>{''.join(itens) if itens else '<tr><td colspan="2">Nenhuma categoria cadastrada.</td></tr>'}</tbody>
-        </table>
-    </body>
-    </html>"""
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechStock — Relatório Offline de Estoque</title>
+    <style>
+        :root {{
+            --bg: #0B1120;
+            --surface: #1E293B;
+            --border: #334155;
+            --text: #F8FAFC;
+            --text-muted: #94A3B8;
+            --primary: #0284C7;
+            --primary-light: #38BDF8;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+        }}
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #F1F5F9;
+            color: #0F172A;
+            padding: 24px;
+        }}
+        .container {{ max-width: 1200px; margin: 0 auto; }}
+        header {{
+            background: #FFFFFF;
+            padding: 24px 28px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+        .brand h1 {{ font-size: 1.5rem; color: #0284C7; display: flex; align-items: center; gap: 8px; }}
+        .brand p {{ color: #64748B; font-size: 0.9rem; margin-top: 4px; }}
+        .badge-offline {{
+            background: #ECFDF5;
+            color: #059669;
+            border: 1px solid #A7F3D0;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }}
+        .kpi-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+        .kpi-card {{
+            background: #FFFFFF;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border-left: 4px solid var(--primary);
+        }}
+        .kpi-card.danger {{ border-left-color: var(--danger); }}
+        .kpi-card.warning {{ border-left-color: var(--warning); }}
+        .kpi-card.success {{ border-left-color: var(--success); }}
+        .kpi-title {{ font-size: 0.85rem; color: #64748B; font-weight: 600; text-transform: uppercase; }}
+        .kpi-value {{ font-size: 2rem; font-weight: 700; color: #0F172A; margin-top: 4px; }}
+        .controls {{
+            background: #FFFFFF;
+            padding: 18px 24px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }}
+        .search-box {{ flex: 1; min-width: 250px; }}
+        input, select {{
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }}
+        input:focus, select:focus {{ border-color: var(--primary); }}
+        .btn {{
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            background: #0284C7;
+            color: #FFFFFF;
+            transition: opacity 0.2s;
+        }}
+        .btn:hover {{ opacity: 0.9; }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            background: #FFFFFF;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }}
+        th, td {{ padding: 14px 18px; text-align: left; font-size: 0.95rem; }}
+        th {{ background: #F8FAFC; color: #475569; font-weight: 600; border-bottom: 1px solid #E2E8F0; }}
+        tr:not(:last-child) td {{ border-bottom: 1px solid #F1F5F9; }}
+        tr:hover {{ background: #F8FAFC; }}
+        .badge {{
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-block;
+        }}
+        .badge-critico {{ background: #FEE2E2; color: #DC2626; }}
+        .badge-atencao {{ background: #FEF3C7; color: #D97706; }}
+        .badge-ok {{ background: #DCFCE7; color: #16A34A; }}
+        .tag {{ background: #F1F5F9; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; color: #475569; }}
+        .footer-info {{
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            color: #64748B;
+            font-size: 0.85rem;
+        }}
+        @media print {{
+            body {{ background: #FFFFFF; padding: 0; }}
+            .controls, .badge-offline {{ display: none; }}
+            table, header, .kpi-card {{ box-shadow: none; border: 1px solid #CBD5E1; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>📦 TechStock — Relatório de Estoque</h1>
+                <p>Relatório Standalone gerado em {data_geracao}</p>
+            </div>
+            <div class="badge-offline">
+                ● 100% Offline (Standalone)
+            </div>
+        </header>
 
-    return Response(html, mimetype="text/html")
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Total de Produtos</div>
+                <div class="kpi-value">{total_produtos}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Categorias Ativas</div>
+                <div class="kpi-value">{total_categorias}</div>
+            </div>
+            <div class="kpi-card warning">
+                <div class="kpi-title">Estoque em Atenção</div>
+                <div class="kpi-value">{atencao}</div>
+            </div>
+            <div class="kpi-card danger">
+                <div class="kpi-title">Estoque Crítico</div>
+                <div class="kpi-value">{criticos}</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="busca" placeholder="🔍 Filtrar por nome do produto ou SKU..." aria-label="Pesquisar produto">
+            </div>
+            <div style="min-width: 180px;">
+                <select id="filtroCategoria" aria-label="Filtrar por categoria">
+                    <option value="">Todas as Categorias</option>
+                    {''.join(f'<option value="{c}">{c}</option>' for c in categorias)}
+                </select>
+            </div>
+            <div style="min-width: 160px;">
+                <select id="filtroStatus" aria-label="Filtrar por status">
+                    <option value="">Todos os Status</option>
+                    <option value="CRITICO">Crítico</option>
+                    <option value="ATENCAO">Atenção</option>
+                    <option value="OK">Normal (OK)</option>
+                </select>
+            </div>
+            <button class="btn" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>SKU</th>
+                    <th>Categoria</th>
+                    <th>Qtd. Atual</th>
+                    <th>Mín / Máx</th>
+                    <th>Preço Un.</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaCorpo"></tbody>
+        </table>
+
+        <div class="footer-info">
+            <span id="contadorItens">Carregando itens...</span>
+            <span>TechStock WMS — Gestão Inteligente de Estoque</span>
+        </div>
+    </div>
+
+    <script>
+        // Dados embutidos diretamente no HTML pelo Flask para independência total de servidor
+        const PRODUTOS = {produtos_json};
+
+        function renderizar() {{
+            const termo = document.getElementById("busca").value.toLowerCase().trim();
+            const cat = document.getElementById("filtroCategoria").value;
+            const status = document.getElementById("filtroStatus").value;
+
+            const filtrados = PRODUTOS.filter(p => {{
+                const matchTermo = !termo || p.nome.toLowerCase().includes(termo) || p.sku.toLowerCase().includes(termo);
+                const matchCat = !cat || p.categoria === cat;
+                const matchStatus = !status || p.status === status;
+                return matchTermo && matchCat && matchStatus;
+            }});
+
+            const tbody = document.getElementById("tabelaCorpo");
+            if (filtrados.length === 0) {{
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 32px; color: #64748B;">Nenhum produto atende aos filtros selecionados.</td></tr>';
+            }} else {{
+                tbody.innerHTML = filtrados.map(p => `
+                    <tr>
+                        <td><strong>${{p.nome}}</strong></td>
+                        <td><code>${{p.sku}}</code></td>
+                        <td><span class="tag">${{p.categoria}}</span></td>
+                        <td><strong>${{p.qtd}}</strong></td>
+                        <td>${{p.min}} / ${{p.max}}</td>
+                        <td>${{p.preco}}</td>
+                        <td><span class="badge badge-${{p.status.toLowerCase()}}">${{p.status}}</span></td>
+                    </tr>
+                `).join("");
+            }}
+
+            document.getElementById("contadorItens").innerText = `Exibindo ${{filtrados.length}} de ${{PRODUTOS.length}} produtos cadastrados`;
+        }}
+
+        document.getElementById("busca").addEventListener("input", renderizar);
+        document.getElementById("filtroCategoria").addEventListener("change", renderizar);
+        document.getElementById("filtroStatus").addEventListener("change", renderizar);
+
+        // Inicialização imediata
+        renderizar();
+    </script>
+</body>
+</html>"""
+
+    response = Response(html, mimetype="text/html")
+    response.headers["Content-Disposition"] = "attachment; filename=relatorio_techstock.html"
+    return response
 
 
 # --------------------------------------------------------------------------
@@ -497,6 +739,19 @@ def novo_produto():
     elif estoque_max < estoque_min:
         erros.append("O estoque máximo não pode ser menor que o mínimo.")
 
+    prod = Produto(
+        id=None,
+        nome=nome,
+        sku=sku,
+        categoria=categoria,
+        estoque_min=estoque_min if estoque_min is not None else 0,
+        estoque_max=estoque_max if estoque_max is not None else 100,
+    )
+    try:
+        prod.validar()
+    except ValueError as val_err:
+        erros.append(str(val_err))
+
     rua = None
     if rua_id and not erros:
         rua = db.execute("SELECT * FROM ruas WHERE id = ?", (rua_id,)).fetchone()
@@ -508,37 +763,21 @@ def novo_produto():
                 f'"{rua["tipo"]}". Não é possível guardar "{categoria}" nela.'
             )
 
-    if not erros:
-        sku_existe = db.execute("SELECT 1 FROM produtos WHERE sku = ?", (sku,)).fetchone()
-        if sku_existe:
-            erros.append("Já existe um produto com esse SKU.")
+    repo = ProdutoRepository(db)
+    if not erros and repo.buscar_por_sku(sku):
+        erros.append("Já existe um produto cadastrado com esse SKU.")
 
     if erros:
         for e in erros:
             flash(e, "danger")
         return redirect(url_for("produtos"))
 
-    cur = db.execute(
-        "INSERT INTO produtos (nome, sku, categoria, estoque_min, estoque_max) VALUES (?, ?, ?, ?, ?)",
-        (nome, sku, categoria, estoque_min, estoque_max),
-    )
-    produto_id = cur.lastrowid
-
     if rua["tipo"] is None:
         db.execute("UPDATE ruas SET tipo = ? WHERE id = ?", (categoria, rua_id))
 
-    db.execute(
-        "INSERT INTO estoque (produto_id, rua_id, quantidade) VALUES (?, ?, ?)",
-        (produto_id, rua_id, qtd),
-    )
+    produto_id = repo.salvar(prod, rua_id=rua_id, qtd_inicial=qtd)
 
-    db.execute("""
-        INSERT INTO entradas (produto_id, rua_id, quantidade, tipo, usuario_id)
-        VALUES (?, ?, ?, 'novo_produto', ?)
-    """, (produto_id, rua_id, qtd, session.get("usuario_id", 1)))
-
-    db.commit()
-    flash(f'Produto "{nome}" cadastrado em "{rua["nome"]}".', "success")
+    flash(f'Produto "{nome}" cadastrado com sucesso em "{rua["nome"]}".', "success")
     return redirect(url_for("produtos"))
 
 
@@ -546,7 +785,8 @@ def novo_produto():
 @admin_required
 def editar_produto(produto_id):
     db = get_db()
-    produto = db.execute("SELECT * FROM produtos WHERE id = ?", (produto_id,)).fetchone()
+    repo = ProdutoRepository(db)
+    produto = repo.buscar_por_id(produto_id)
     if not produto:
         flash("Produto não encontrado.", "danger")
         return redirect(url_for("produtos"))
@@ -569,11 +809,11 @@ def editar_produto(produto_id):
         return redirect(request.referrer or url_for("produtos"))
 
     db.execute(
-        "UPDATE produtos SET nome = ?, estoque_min = ?, estoque_max = ? WHERE id = ?",
+        "UPDATE produtos SET nome = ?, estoque_min = ?, estoque_max = ?, atualizado_em = datetime('now') WHERE id = ?",
         (nome, estoque_min, estoque_max, produto_id),
     )
     db.commit()
-    flash(f'Produto "{nome}" atualizado.', "success")
+    flash(f'Produto "{nome}" atualizado com sucesso.', "success")
     return redirect(request.referrer or url_for("produtos"))
 
 
@@ -581,13 +821,13 @@ def editar_produto(produto_id):
 @admin_required
 def excluir_produto(produto_id):
     db = get_db()
+    repo = ProdutoRepository(db)
     db.execute("DELETE FROM movimentacoes WHERE produto_id = ?", (produto_id,))
     db.execute("DELETE FROM saidas WHERE produto_id = ?", (produto_id,))
     db.execute("DELETE FROM entradas WHERE produto_id = ?", (produto_id,))
     db.execute("DELETE FROM estoque WHERE produto_id = ?", (produto_id,))
-    db.execute("DELETE FROM produtos WHERE id = ?", (produto_id,))
-    db.commit()
-    flash("Produto excluído.", "success")
+    repo.excluir(produto_id)
+    flash("Produto excluído com sucesso.", "success")
     return redirect(url_for("produtos"))
 
 

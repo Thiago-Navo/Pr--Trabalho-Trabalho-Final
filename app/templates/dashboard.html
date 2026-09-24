@@ -4,7 +4,7 @@
 {% block busca %}
   <i class="bi bi-search"></i>
   <form method="get" action="{{ url_for('produtos') }}" style="display:flex; flex:1;">
-    <input type="text" name="q" placeholder="Pesquisar produto, SKU ou categoria...">
+    <input type="text" name="q" placeholder="Pesquisar produto, SKU ou categoria..." aria-label="Pesquisar produto, SKU ou categoria">
   </form>
 {% endblock %}
 
@@ -14,9 +14,14 @@
       <h1>Dashboard</h1>
       <p>Visão geral do estoque em tempo real</p>
     </div>
-    <a href="{{ url_for('movimentacoes') }}" class="btn-primary-custom">
-      <i class="bi bi-plus-lg"></i> Registrar movimentação
-    </a>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <a href="{{ url_for('exportar_relatorio') }}" class="btn btn-outline-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 500; border-radius: 8px;">
+        <i class="bi bi-file-earmark-arrow-down"></i> Exportar Relatório (Offline)
+      </a>
+      <a href="{{ url_for('movimentacoes') }}" class="btn-primary-custom">
+        <i class="bi bi-plus-lg"></i> Registrar movimentação
+      </a>
+    </div>
   </div>
 
   <div class="kpi-grid">

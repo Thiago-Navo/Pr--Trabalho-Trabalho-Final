@@ -1,17 +1,25 @@
 import os
+import gc
 import sqlite3
-
 import pytest
 
 from app.database import database
 from app.seed import seed
 
 
+def _safe_remove(path):
+    gc.collect()
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except (PermissionError, OSError):
+            pass
+
+
 @pytest.fixture
 def db_conn():
     database.db_path = "techstock_test_pytest.db"
-    if os.path.exists(database.db_path):
-        os.remove(database.db_path)
+    _safe_remove(database.db_path)
 
     seed()
     conn = sqlite3.connect(database.db_path)
@@ -19,22 +27,21 @@ def db_conn():
     yield conn
     conn.close()
 
-    if os.path.exists(database.db_path):
-        os.remove(database.db_path)
+    _safe_remove(database.db_path)
 
 
 @pytest.fixture
 def app_client():
     database.db_path = "techstock_test_app.db"
-    if os.path.exists(database.db_path):
-        os.remove(database.db_path)
+    _safe_remove(database.db_path)
 
     seed()
     app = __import__("app", fromlist=["create_app"]).create_app()
     app.config["TESTING"] = True
-    client = app.test_client()
 
-    yield client
+    with app.app_context():
+        with app.test_client() as client:
+            yield client
+        database.close_connection()
 
-    if os.path.exists(database.db_path):
-        os.remove(database.db_path)
+    _safe_remove(database.db_path)

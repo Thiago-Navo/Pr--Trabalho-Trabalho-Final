@@ -65,10 +65,19 @@
             <input type="password" id="confirmar_senha" name="confirmar_senha" required minlength="6">
           </div>
 
+          <div class="form-field">
+            <label for="cep">CEP de Localização (Consulta ViaCEP)</label>
+            <div style="display:flex; gap: 8px;">
+              <input type="text" id="cep" name="cep" placeholder="00000-000" maxlength="9" aria-label="CEP de Localização">
+              <button type="button" id="btnBuscarCep" class="btn btn-sm btn-outline-secondary" style="white-space:nowrap; border-radius:6px; font-weight:500;">Consultar</button>
+            </div>
+            <div id="resultadoCep" style="font-size:0.85rem; margin-top:6px; display:none;"></div>
+          </div>
+
           {% if criando_como_admin and not primeiro %}
           <div class="form-field">
             <label for="papel">Tipo de acesso</label>
-            <select id="papel" name="papel">
+            <select id="papel" name="papel" aria-label="Tipo de acesso">
               <option value="operador" {{ 'selected' if form.get('papel', 'operador') == 'operador' }}>Operador — cadastra e movimenta produtos</option>
               <option value="admin" {{ 'selected' if form.get('papel') == 'admin' }}>Administrador — acesso total, inclusive exclusão</option>
             </select>
@@ -81,6 +90,49 @@
             {{ 'Criar usuário' if criando_como_admin else 'Criar conta' }}
           </button>
         </form>
+
+        <script>
+          const cepInput = document.getElementById("cep");
+          const btnBuscarCep = document.getElementById("btnBuscarCep");
+          const resultadoCep = document.getElementById("resultadoCep");
+
+          async function consultarCep() {
+            const cep = (cepInput.value || "").replace(/\D/g, "");
+            if (cep.length !== 8) {
+              resultadoCep.style.display = "block";
+              resultadoCep.style.color = "#ef4444";
+              resultadoCep.innerText = "Informe um CEP válido com 8 dígitos.";
+              return;
+            }
+            resultadoCep.style.display = "block";
+            resultadoCep.style.color = "#64748b";
+            resultadoCep.innerText = "Consultando ViaCEP...";
+            try {
+              const resp = await fetch("/api/consulta-cep/" + cep);
+              const dados = await resp.json();
+              if (resp.ok && !dados.erro) {
+                resultadoCep.style.color = "#10b981";
+                const end = [dados.logradouro, dados.bairro, `${dados.cidade}/${dados.uf}`].filter(Boolean).join(" - ");
+                resultadoCep.innerText = `📍 ${end}`;
+              } else {
+                resultadoCep.style.color = "#ef4444";
+                resultadoCep.innerText = dados.erro || "CEP não localizado.";
+              }
+            } catch (err) {
+              resultadoCep.style.color = "#ef4444";
+              resultadoCep.innerText = "Não foi possível consultar o ViaCEP.";
+            }
+          }
+
+          if (btnBuscarCep) {
+            btnBuscarCep.addEventListener("click", consultarCep);
+          }
+          if (cepInput) {
+            cepInput.addEventListener("blur", () => {
+              if (cepInput.value.replace(/\D/g, "").length === 8) consultarCep();
+            });
+          }
+        </script>
 
         {% if criando_como_admin %}
         <p class="hint" style="margin-top:16px; text-align:center;">

@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    container_name: techstock-app
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=chave-secreta-techstock-docker
+    volumes:
+      - techstock_data:/app/instance
+    restart: unless-stopped
+
+volumes:
+  techstock_data:

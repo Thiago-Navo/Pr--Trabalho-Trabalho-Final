@@ -1,158 +1,193 @@
 -- =============================================================
---  WMS — DDL COMPLETO
---  Ordem de criação respeita dependências (FK)
---  Banco: PostgreSQL 15+  (adapte SERIAL → AUTO_INCREMENT para MySQL)
+--  TechStock WMS — DDL COMPLETO (SQLite 3)
+--  Chaves estrangeiras ativas (PRAGMA foreign_keys = ON)
 -- =============================================================
 
--- -------------------------------------------------------------
--- 1. USUARIO
--- -------------------------------------------------------------
-CREATE TABLE usuario (
-    id               SERIAL        PRIMARY KEY,
-    nome             VARCHAR(120)  NOT NULL,
-    email            VARCHAR(120)  NOT NULL UNIQUE,
-    celular          VARCHAR(20),
-    cargo            VARCHAR(80),
-    poder            SMALLINT      NOT NULL DEFAULT 1,  -- 1=operador 2=supervisor 3=admin
-    senha_hash       VARCHAR(255)  NOT NULL,
-    criado_em        TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    atualizado_em    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    ativo            BOOLEAN       NOT NULL DEFAULT TRUE,
-    deletado_em      TIMESTAMPTZ
+DROP TABLE IF EXISTS estoque_local;
+DROP TABLE IF EXISTS endereco_estoque;
+DROP TABLE IF EXISTS movimento;
+DROP TABLE IF EXISTS movimentacoes;
+DROP TABLE IF EXISTS entradas;
+DROP TABLE IF EXISTS saidas;
+DROP TABLE IF EXISTS estoque;
+DROP TABLE IF EXISTS produtos;
+DROP TABLE IF EXISTS drives;
+DROP TABLE IF EXISTS ruas;
+DROP TABLE IF EXISTS categorias;
+DROP TABLE IF EXISTS fornecedores;
+DROP TABLE IF EXISTS empresas;
+DROP TABLE IF EXISTS usuarios;
+
+-- 1. USUARIOS
+CREATE TABLE usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario TEXT,
+    nome TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    senha TEXT,
+    senha_hash TEXT NOT NULL,
+    papel TEXT DEFAULT 'operador',
+    cargo TEXT DEFAULT 'Operador',
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- -------------------------------------------------------------
--- 2. EMPRESA  (fabricante + fornecedor + endereço — flat)
--- -------------------------------------------------------------
-CREATE TABLE empresa (
-    id               SERIAL        PRIMARY KEY,
-    tipo             VARCHAR(20)   NOT NULL CHECK (tipo IN ('fabricante','fornecedor','ambos')),
-    cnpj             VARCHAR(18)   UNIQUE,
-    razao_social     VARCHAR(160)  NOT NULL,
-    nome_fantasia    VARCHAR(160),
-    tel_fixo         VARCHAR(20),
-    tel_celular      VARCHAR(20),
-    email            VARCHAR(120),
-    -- endereço flat (data-warehouse style)
-    cep              VARCHAR(9),
-    estado           CHAR(2),
-    cidade           VARCHAR(80),
-    logradouro       VARCHAR(160),
-    numero           VARCHAR(10),
-    complemento      VARCHAR(80),
-    -- campos específicos de fabricante (nullable para fornecedor)
-    nacionalidade    VARCHAR(60),
-    site_fabric      VARCHAR(200),
-    -- responsável (útil para fornecedor)
-    usuario_id       INT           REFERENCES usuario(id) ON DELETE SET NULL,
-    ativo_online     BOOLEAN       NOT NULL DEFAULT TRUE,
-    dt_cadastro      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    dt_atualizado    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    dt_deletado      TIMESTAMPTZ
+-- 2. EMPRESAS
+CREATE TABLE empresas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome_fantasia TEXT NOT NULL,
+    razao_social TEXT,
+    cnpj TEXT UNIQUE NOT NULL,
+    tipo TEXT DEFAULT 'fabricante',
+    cep TEXT,
+    logradouro TEXT,
+    bairro TEXT,
+    cidade TEXT,
+    uf TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- -------------------------------------------------------------
--- 3. CATEGORIA
--- -------------------------------------------------------------
-CREATE TABLE categoria (
-    id               SERIAL        PRIMARY KEY,
-    nome             VARCHAR(80)   NOT NULL,
-    subcategoria     VARCHAR(80),
-    descritivo       TEXT,
-    ativo            BOOLEAN       NOT NULL DEFAULT TRUE
+-- 3. FORNECEDORES
+CREATE TABLE fornecedores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cpf_cnpj TEXT UNIQUE NOT NULL,
+    telefone TEXT,
+    cep TEXT,
+    logradouro TEXT,
+    bairro TEXT,
+    cidade TEXT,
+    uf TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- -------------------------------------------------------------
--- 4. PRODUTO
--- -------------------------------------------------------------
-CREATE TABLE produto (
-    id               SERIAL        PRIMARY KEY,
-    nome             VARCHAR(160)  NOT NULL,
-    descricao        TEXT,
-    altura           NUMERIC(8,2),
-    largura          NUMERIC(8,2),
-    peso             NUMERIC(8,3),
-    cor_predominante VARCHAR(40),
-    qtd_min          INT           NOT NULL DEFAULT 0,
-    qtd_max          INT,
-    marca            VARCHAR(80),
-    modelo           VARCHAR(80),
-    categoria_id     INT           REFERENCES categoria(id) ON DELETE SET NULL,
-    fabricante_id    INT           REFERENCES empresa(id)   ON DELETE SET NULL,
-    fornecedor_id    INT           REFERENCES empresa(id)   ON DELETE SET NULL
+-- 4. CATEGORIAS
+CREATE TABLE categorias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT UNIQUE NOT NULL,
+    descritivo TEXT
 );
 
--- -------------------------------------------------------------
--- 5. ENDERECO_ESTOQUE  (árvore via caminho materializado)
---    Hierarquia: corredor → modulo → nivel → vao
---    caminho = caminho_pai || '/' || id  (calculado após INSERT)
--- -------------------------------------------------------------
+-- 5. RUAS
+CREATE TABLE ruas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT UNIQUE NOT NULL,
+    tipo TEXT,
+    descricao TEXT,
+    corredor TEXT,
+    prateleira TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. DRIVES
+CREATE TABLE drives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rua_id INTEGER NOT NULL,
+    codigo TEXT UNIQUE NOT NULL,
+    categoria_sugerida TEXT,
+    ocupacao_pct INTEGER DEFAULT 0,
+    FOREIGN KEY (rua_id) REFERENCES ruas (id) ON DELETE CASCADE
+);
+
+-- 7. ENDEREÇO DE ESTOQUE
 CREATE TABLE endereco_estoque (
-    id               SERIAL        PRIMARY KEY,
-    parent_id        INT           REFERENCES endereco_estoque(id) ON DELETE RESTRICT,
-    nome             VARCHAR(80)   NOT NULL,
-    tipo             VARCHAR(10)   NOT NULL CHECK (tipo IN ('corredor','modulo','nivel','vao')),
-    -- caminho materializado, ex: "1", "1/3", "1/3/7", "1/3/7/12"
-    -- preenchido via UPDATE logo após INSERT (veja função abaixo)
-    caminho          VARCHAR(200)  NOT NULL DEFAULT '',
-    em_uso           BOOLEAN       NOT NULL DEFAULT TRUE
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    tipo TEXT DEFAULT 'vao',
+    corredor TEXT,
+    prateleira TEXT,
+    parent_id INTEGER,
+    caminho TEXT DEFAULT '',
+    em_uso BOOLEAN DEFAULT 1
 );
 
--- Índice para buscas por subtree: WHERE caminho LIKE '1/3/%'
-CREATE INDEX idx_ee_caminho ON endereco_estoque (caminho);
-CREATE INDEX idx_ee_parent  ON endereco_estoque (parent_id);
-CREATE INDEX idx_ee_tipo    ON endereco_estoque (tipo);
+-- 8. PRODUTOS
+CREATE TABLE produtos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    sku TEXT UNIQUE NOT NULL,
+    preco INTEGER DEFAULT 0,
+    categoria TEXT,
+    categoria_id INTEGER,
+    fornecedor_id INTEGER,
+    drive_id INTEGER,
+    quantidade INTEGER NOT NULL DEFAULT 0,
+    estoque_min INTEGER NOT NULL DEFAULT 0,
+    estoque_max INTEGER NOT NULL DEFAULT 0,
+    quantidade_minima INTEGER NOT NULL DEFAULT 0,
+    descricao TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoria_id) REFERENCES categorias (id),
+    FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id),
+    FOREIGN KEY (drive_id) REFERENCES drives (id)
+);
 
--- -------------------------------------------------------------
--- 6. ESTOQUE_LOCAL
---    Só deve apontar para endereços do tipo 'vao' (constraint via CHECK + trigger)
--- -------------------------------------------------------------
+-- 9. ESTOQUE
+CREATE TABLE estoque (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+    rua_id INTEGER NOT NULL REFERENCES ruas(id) ON DELETE CASCADE,
+    quantidade INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (produto_id, rua_id)
+);
+
+-- 10. ESTOQUE LOCAL
 CREATE TABLE estoque_local (
-    id                    SERIAL  PRIMARY KEY,
-    produto_id            INT     NOT NULL REFERENCES produto(id)           ON DELETE RESTRICT,
-    endereco_estoque_id   INT     NOT NULL REFERENCES endereco_estoque(id)  ON DELETE RESTRICT,
-    quantidade            INT     NOT NULL DEFAULT 0 CHECK (quantidade >= 0),
-    UNIQUE (produto_id, endereco_estoque_id)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produto_id INTEGER NOT NULL,
+    endereco_estoque_id INTEGER,
+    empresa_id INTEGER,
+    quantidade INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (produto_id) REFERENCES produtos (id),
+    FOREIGN KEY (endereco_estoque_id) REFERENCES endereco_estoque (id),
+    FOREIGN KEY (empresa_id) REFERENCES empresas (id)
 );
 
-CREATE INDEX idx_el_produto   ON estoque_local (produto_id);
-CREATE INDEX idx_el_endereco  ON estoque_local (endereco_estoque_id);
-
--- -------------------------------------------------------------
--- 7. MOVIMENTO
--- -------------------------------------------------------------
+-- 11. MOVIMENTO (LOG GERAL)
 CREATE TABLE movimento (
-    id                    SERIAL        PRIMARY KEY,
-    produto_id            INT           NOT NULL REFERENCES produto(id)          ON DELETE RESTRICT,
-    quantidade            INT           NOT NULL CHECK (quantidade > 0),
-    origem_id             INT           REFERENCES estoque_local(id)             ON DELETE SET NULL,
-    destino_id            INT           REFERENCES estoque_local(id)             ON DELETE SET NULL,
-    tipo_movimento        VARCHAR(20)   NOT NULL
-                          CHECK (tipo_movimento IN ('entrada','saida','transferencia','ajuste')),
-    usuario_id            INT           REFERENCES usuario(id)                   ON DELETE SET NULL,
-    observacao            TEXT,
-    criado_em             TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produto_id INTEGER NOT NULL,
+    usuario_id INTEGER DEFAULT 1,
+    fornecedor_id INTEGER,
+    tipo TEXT CHECK(tipo IN ('ENTRADA', 'SAIDA')) NOT NULL,
+    quantidade INTEGER NOT NULL,
+    observacao TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (produto_id) REFERENCES produtos (id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id),
+    FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id)
 );
 
-CREATE INDEX idx_mov_produto  ON movimento (produto_id);
-CREATE INDEX idx_mov_criado   ON movimento (criado_em DESC);
-
--- -------------------------------------------------------------
--- 8. LOG_ACESSO  (auditoria geral)
--- -------------------------------------------------------------
-CREATE TABLE log_acesso (
-    id               BIGSERIAL     PRIMARY KEY,
-    usuario_id       INT           REFERENCES usuario(id) ON DELETE SET NULL,
-    acao             VARCHAR(40)   NOT NULL,   -- ex: 'CREATE', 'UPDATE', 'DELETE', 'LOGIN'
-    entidade         VARCHAR(60)   NOT NULL,   -- ex: 'produto', 'movimento'
-    entidade_id      INT,
-    dados_anteriores JSONB,
-    dados_novos      JSONB,
-    ip               VARCHAR(45),
-    user_agent       VARCHAR(255),
-    criado_em        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+-- 12. MOVIMENTACOES (ENTRE RUAS)
+CREATE TABLE movimentacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+    rua_origem_id INTEGER REFERENCES ruas(id),
+    rua_destino_id INTEGER REFERENCES ruas(id),
+    quantidade INTEGER NOT NULL,
+    tipo TEXT NOT NULL CHECK (tipo IN ('cadastro', 'transferencia')),
+    usuario_id INTEGER REFERENCES usuarios(id),
+    data TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_log_usuario  ON log_acesso (usuario_id);
-CREATE INDEX idx_log_entidade ON log_acesso (entidade, entidade_id);
-CREATE INDEX idx_log_criado   ON log_acesso (criado_em DESC);
+-- 13. SAIDAS
+CREATE TABLE saidas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+    rua_id INTEGER NOT NULL REFERENCES ruas(id),
+    quantidade INTEGER NOT NULL,
+    motivo TEXT,
+    usuario_id INTEGER REFERENCES usuarios(id),
+    data TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 14. ENTRADAS
+CREATE TABLE entradas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+    rua_id INTEGER NOT NULL REFERENCES ruas(id),
+    quantidade INTEGER NOT NULL,
+    tipo TEXT NOT NULL CHECK (tipo IN ('novo_produto', 'reabastecimento')),
+    usuario_id INTEGER REFERENCES usuarios(id),
+    data TEXT NOT NULL DEFAULT (datetime('now'))
+);

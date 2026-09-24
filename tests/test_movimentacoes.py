@@ -17,7 +17,7 @@ def test_transferencia_entre_ruas_atualiza_estoque(app_client):
 
     produto_id = conn.execute("SELECT id FROM produtos ORDER BY id LIMIT 1").fetchone()["id"]
     conn.execute(
-        "INSERT INTO estoque (produto_id, rua_id, quantidade) VALUES (?, ?, ?)",
+        "INSERT OR REPLACE INTO estoque (produto_id, rua_id, quantidade) VALUES (?, ?, ?)",
         (produto_id, rua_origem, 10),
     )
     conn.commit()
