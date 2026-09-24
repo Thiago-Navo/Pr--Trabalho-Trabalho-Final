@@ -31,9 +31,44 @@ def init_database_if_needed():
         logger.warning(f"Erro ao verificar/inicializar banco de dados automático: {e}")
 
 
+def formatar_data_br(valor):
+    """Converte datas em formato ISO/SQLite (YYYY-MM-DD HH:MM:SS) para padrão brasileiro com hora (DD/MM/YYYY às HH:MM)."""
+    if not valor:
+        return "—"
+    try:
+        if isinstance(valor, str):
+            val_limpo = valor.strip().replace("T", " ")
+            partes = val_limpo.split(" ")
+            data_parte = partes[0]
+            hora_parte = partes[1] if len(partes) > 1 else ""
+
+            if "-" in data_parte:
+                pedacos = data_parte.split("-")
+                if len(pedacos) >= 3:
+                    ano, mes, dia = pedacos[:3]
+                    data_br = f"{dia.zfill(2)}/{mes.zfill(2)}/{ano}"
+                else:
+                    data_br = data_parte
+            else:
+                data_br = data_parte
+
+            if hora_parte:
+                horas = hora_parte.split(":")[:2]
+                return f"{data_br} às {':'.join(horas)}"
+            return data_br
+        elif hasattr(valor, "strftime"):
+            return valor.strftime("%d/%m/%Y às %H:%M")
+        return str(valor)
+    except Exception:
+        return str(valor)
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "chave-secreta-techstock-2026")
+
+    # Registra filtro Jinja2 para padrão de data e hora brasileiro
+    app.jinja_env.filters["data_br"] = formatar_data_br
 
     # Auto-inicializa o banco e seed se for a primeira vez rodando no PC
     init_database_if_needed()
