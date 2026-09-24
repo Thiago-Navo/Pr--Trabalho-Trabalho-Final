@@ -7,7 +7,8 @@ from functools import wraps
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, session, flash, jsonify, g, Response
+    url_for, session, flash, jsonify, g, Response,
+    send_from_directory, current_app
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -1298,3 +1299,12 @@ def nova_saida():
     session["rascunho_concluido"] = "saida"
     flash(f'Saída de {quantidade} unidade(s) de "{produto["nome"]}" registrada.', "success")
     return redirect(url_for("saidas"))
+
+
+@front_bp.route("/sw.js")
+def service_worker():
+    response = send_from_directory(current_app.static_folder, "js/sw.js")
+    response.headers["Content-Type"] = "application/javascript"
+    response.headers["Service-Worker-Allowed"] = "/"
+    return response
+

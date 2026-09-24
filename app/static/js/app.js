@@ -262,10 +262,33 @@ function initMusica() {
   if (btnProxima) btnProxima.addEventListener("click", proximaFaixa);
   if (btnAnterior) btnAnterior.addEventListener("click", faixaAnterior);
 
+  let tentativasErro = 0;
+  audio.addEventListener("playing", () => {
+    tentativasErro = 0;
+  });
+
   audio.addEventListener("ended", () => proximaFaixa());
   audio.addEventListener("error", () => {
+    // 1. Erro de abort (código 1 = MEDIA_ERR_ABORTED):
+    // Ocorre quando o navegador cancela o stream durante navegação entre telas ou troca de faixa.
+    // Isso é um comportamento normal de rede do navegador e NÃO deve acusar arquivo inexistente!
+    if (audio.error && audio.error.code === 1) {
+      return;
+    }
+
+    console.warn("TechStock Player: erro de áudio na faixa:", audio.src, audio.error);
+
+    // Se houver falha real de carregamento, tenta avançar suavemente para a próxima faixa
+    if (!semFaixas() && tentativasErro < lista.length) {
+      tentativasErro++;
+      setTimeout(() => {
+        proximaFaixa();
+      }, 500);
+      return;
+    }
+
     if (!semFaixas()) {
-      artistaEl.textContent = "Arquivo de áudio não encontrado";
+      artistaEl.textContent = "Áudio indisponível no momento";
       atualizarIconePlay(false);
       marcarGirando(false);
     }
