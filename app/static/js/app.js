@@ -108,16 +108,22 @@ function initMusica() {
   const lista = typeof PLAYLIST !== "undefined" ? PLAYLIST : [];
   const capaPadrao = capa ? capa.getAttribute("src") : "";
   let indice = 0;
-  let historico = []; // pilha de faixas já tocadas nesta sessão, para o botão "anterior" funcionar direito no modo aleatório
+  let historico = [];
 
   function semFaixas() {
     return lista.length === 0;
   }
 
+  function salvarEstadoPlayer() {
+    if (semFaixas()) return;
+    try {
+      localStorage.setItem("estoque-player-indice", String(indice));
+      localStorage.setItem("estoque-player-tocando", String(!audio.paused));
+      localStorage.setItem("estoque-player-tempo", String(Math.floor(audio.currentTime || 0)));
+    } catch (_) {}
+  }
+
   function indiceAleatorio(evitar) {
-    // Sorteia uma faixa diferente da que está tocando agora, sempre que
-    // houver mais de uma faixa na playlist (senão ia poder repetir a
-    // mesma faixa sem querer).
     if (lista.length <= 1) return 0;
     let novo;
     do {
@@ -168,17 +174,23 @@ function initMusica() {
     }
     indice = ((i % lista.length) + lista.length) % lista.length;
     const faixa = lista[indice];
-    audio.src = faixa.src;
+
+    // Só troca o src do áudio se for uma URL diferente, para evitar quebrar buffer existente
+    if (audio.getAttribute("src") !== faixa.src) {
+      audio.src = faixa.src;
+    }
     tituloEl.textContent = faixa.titulo || "Faixa sem nome";
     artistaEl.textContent = faixa.artista || "Artista desconhecido";
     if (capa) capa.src = faixa.capa && faixa.capa.trim() ? faixa.capa : capaPadrao;
+
+    salvarEstadoPlayer();
 
     if (autoPlay) {
       audio.play().then(() => {
         atualizarIconePlay(true);
         marcarGirando(true);
+        salvarEstadoPlayer();
       }).catch(() => {
-        // navegador pode bloquear autoplay sem interação prévia — sem problema
         atualizarIconePlay(false);
         marcarGirando(false);
       });
@@ -193,11 +205,13 @@ function initMusica() {
       audio.play().then(() => {
         atualizarIconePlay(true);
         marcarGirando(true);
+        salvarEstadoPlayer();
       }).catch(() => {});
     } else {
       audio.pause();
       atualizarIconePlay(false);
       marcarGirando(false);
+      salvarEstadoPlayer();
     }
   }
 
@@ -218,43 +232,44 @@ function initMusica() {
   if (semFaixas()) {
     [btnPlayPause, btnAnterior, btnProxima].forEach((b) => b && (b.disabled = true));
   } else {
-    // Começa numa faixa aleatória a cada login/carregamento completo da
-    // página (essa função só roda de novo em recarregamentos de página
-    // inteiros — a navegação suave entre telas não mexe no player).
-    const indiceInicial = Math.floor(Math.random() * lista.length);
+    // Restaura a faixa que já estava tocando para NUNCA perder a música ao navegar
+    const salvo = parseInt(localStorage.getItem("estoque-player-indice"), 10);
+    let indiceInicial = (!isNaN(salvo) && salvo >= 0 && salvo < lista.length) ? salvo : Math.floor(Math.random() * lista.length);
     tentarAutoplay(indiceInicial);
   }
 
   function tentarAutoplay(indiceEscolhido) {
-    // Carrega a faixa (título, capa) sem tentar tocar ainda — quem cuida
-    // da tentativa de reprodução é este método, para sabermos exatamente
-    // quando o navegador bloqueou o autoplay.
     carregarFaixa(indiceEscolhido, false);
+
+    const tempoSalvo = parseFloat(localStorage.getItem("estoque-player-tempo")) || 0;
+    if (tempoSalvo > 0 && Number.isFinite(tempoSalvo)) {
+      try { audio.currentTime = tempoSalvo; } catch (_) {}
+    }
+
+    const estavaTocando = localStorage.getItem("estoque-player-tocando") === "true";
 
     audio.play().then(() => {
       atualizarIconePlay(true);
       marcarGirando(true);
+      salvarEstadoPlayer();
     }).catch(() => {
-      // Navegadores bloqueiam áudio com som tocando sozinho sem que a
-      // pessoa já tenha interagido com a página — é uma política do
-      // próprio navegador, não dá pra forçar. Para chegar o mais perto
-      // possível de "toca sozinho ao logar", a gente espera o primeiro
-      // clique/toque/tecla em qualquer lugar da página (que já conta
-      // como "interação do usuário") e usa esse gesto para iniciar a
-      // reprodução automaticamente, sem precisar apertar o botão de play.
+      // Se o navegador bloqueou o autoplay sem gesto prévio, espera o primeiro toque/clique para iniciar
       atualizarIconePlay(false);
       marcarGirando(false);
 
-      function iniciarNoPrimeiroGesto() {
-        audio.play().then(() => {
-          atualizarIconePlay(true);
-          marcarGirando(true);
-        }).catch(() => {});
-      }
+      if (estavaTocando) {
+        function iniciarNoPrimeiroGesto() {
+          audio.play().then(() => {
+            atualizarIconePlay(true);
+            marcarGirando(true);
+            salvarEstadoPlayer();
+          }).catch(() => {});
+        }
 
-      ["click", "keydown", "touchstart"].forEach((evento) => {
-        document.addEventListener(evento, iniciarNoPrimeiroGesto, { once: true });
-      });
+        ["click", "keydown", "touchstart"].forEach((evento) => {
+          document.addEventListener(evento, iniciarNoPrimeiroGesto, { once: true });
+        });
+      }
     });
   }
 
@@ -262,36 +277,38 @@ function initMusica() {
   if (btnProxima) btnProxima.addEventListener("click", proximaFaixa);
   if (btnAnterior) btnAnterior.addEventListener("click", faixaAnterior);
 
-  let tentativasErro = 0;
-  audio.addEventListener("playing", () => {
-    tentativasErro = 0;
+  audio.addEventListener("play", () => {
+    atualizarIconePlay(true);
+    marcarGirando(true);
+    salvarEstadoPlayer();
   });
 
-  audio.addEventListener("ended", () => proximaFaixa());
-  audio.addEventListener("error", () => {
+  audio.addEventListener("pause", () => {
+    atualizarIconePlay(false);
+    marcarGirando(false);
+    salvarEstadoPlayer();
+  });
+
+  audio.addEventListener("timeupdate", () => {
+    if (Math.floor(audio.currentTime) % 4 === 0) {
+      salvarEstadoPlayer();
+    }
+  });
+
+  // Somente avança a faixa quando a música realmente termina de tocar até o final
+  audio.addEventListener("ended", () => {
+    proximaFaixa();
+  });
+
+  audio.addEventListener("error", (e) => {
     // 1. Erro de abort (código 1 = MEDIA_ERR_ABORTED):
-    // Ocorre quando o navegador cancela o stream durante navegação entre telas ou troca de faixa.
-    // Isso é um comportamento normal de rede do navegador e NÃO deve acusar arquivo inexistente!
+    // Ocorre quando o navegador cancela o stream durante navegação ou troca. É inofensivo.
     if (audio.error && audio.error.code === 1) {
       return;
     }
 
-    console.warn("TechStock Player: erro de áudio na faixa:", audio.src, audio.error);
-
-    // Se houver falha real de carregamento, tenta avançar suavemente para a próxima faixa
-    if (!semFaixas() && tentativasErro < lista.length) {
-      tentativasErro++;
-      setTimeout(() => {
-        proximaFaixa();
-      }, 500);
-      return;
-    }
-
-    if (!semFaixas()) {
-      artistaEl.textContent = "Áudio indisponível no momento";
-      atualizarIconePlay(false);
-      marcarGirando(false);
-    }
+    console.warn("TechStock Player: aviso de áudio na faixa:", audio.src, audio.error);
+    // NÃO chama proximaFaixa() aqui para não criar loop infinito de troca de faixas ao navegar rápido!
   });
 }
 
