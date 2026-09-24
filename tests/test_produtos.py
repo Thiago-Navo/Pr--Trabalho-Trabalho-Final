@@ -105,3 +105,30 @@ def test_produto_duplicado_gera_erro(app_client):
     assert duplicado.status_code == 200
     assert b"produto" in duplicado.data.lower()
     assert b"SKU" in duplicado.data or b"sku" in duplicado.data.lower()
+
+
+def test_gerenciamento_de_categorias(app_client):
+    login = app_client.post(
+        "/login",
+        data={"usuario": "admin", "senha": "admin123"},
+        follow_redirects=False,
+    )
+    assert login.status_code == 302
+
+    resp_add = app_client.post(
+        "/categorias/nova",
+        data={"nome": "Acessórios VR"},
+        follow_redirects=True,
+    )
+    assert resp_add.status_code == 200
+    assert b"Acess\xc3\xb3rios VR" in resp_add.data or b"Acess" in resp_add.data
+
+    conn = sqlite3.connect("techstock_test_app.db")
+    conn.row_factory = sqlite3.Row
+    cat = conn.execute("SELECT id FROM categorias WHERE nome = ?", ("Acessórios VR",)).fetchone()
+    conn.close()
+    assert cat is not None
+
+    resp_del = app_client.post(f"/categorias/{cat['id']}/excluir", follow_redirects=True)
+    assert resp_del.status_code == 200
+

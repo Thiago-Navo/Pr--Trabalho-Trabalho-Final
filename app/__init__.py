@@ -45,6 +45,31 @@ def create_app() -> Flask:
     app.register_blueprint(front_bp)
     app.register_blueprint(api_bp)
 
+    @app.context_processor
+    def inject_globals():
+        from flask import session
+        def rascunho_de(chave):
+            return session.get(f"rascunho_{chave}", {})
+
+        def rascunho_extra(chave):
+            return session.get(f"rascunho_extra_{chave}", {})
+
+        existe_conta = True
+        try:
+            db = database.get_connection()
+            row = db.execute("SELECT COUNT(*) AS n FROM usuarios").fetchone()
+            existe_conta = (row["n"] > 0) if row else False
+        except Exception:
+            pass
+
+        return {
+            "rascunho_de": rascunho_de,
+            "rascunho_extra": rascunho_extra,
+            "rascunho_concluido": session.pop("rascunho_concluido", None),
+            "rascunho_chave": session.pop("rascunho_chave", None),
+            "existe_conta": existe_conta,
+        }
+
     @app.errorhandler(404)
     def erro_404(error):
         return render_template("errors/404.html"), 404

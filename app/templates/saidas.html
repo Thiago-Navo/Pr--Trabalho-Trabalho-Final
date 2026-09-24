@@ -143,6 +143,26 @@
     if (opt) inputQtd.value = opt.dataset.qtd || 0;
   });
 
+  /* ---- Mantém o que já foi digitado nesta tela ----
+     Se a saída for recusada (quantidade maior que o saldo, por exemplo),
+     a pessoa volta para o formulário com produto, rua, quantidade e motivo
+     ainda preenchidos, e só corrige o que estava errado. */
+  Rascunho.ligar("#formSaida", "saida", {
+    concluido: {{ 'true' if rascunho_concluido == 'saida' else 'false' }}
+  });
+
+  (async function restaurarSaida() {
+    {% if rascunho_concluido == 'saida' %}return;{% endif %}
+    const dados = Rascunho.ler("saida");
+    if (!selProduto.value) return;
+    await carregarEstoqueDoProduto();
+    if (dados.rua_id && selRua.querySelector(`option[value="${dados.rua_id}"]`)) {
+      selRua.value = dados.rua_id;
+      atualizarDisponivel();
+    }
+    if (dados.quantidade) inputQtd.value = dados.quantidade;
+  })();
+
   document.getElementById("buscaSaida").addEventListener("input", (e) => {
     const termo = e.target.value.trim().toLowerCase();
     document.querySelectorAll("#tabelaSaidas tbody tr[data-produto]").forEach((tr) => {

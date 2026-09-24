@@ -155,6 +155,26 @@
     if (opt) inputQtd.value = opt.dataset.qtd || 0;
   });
 
+  /* ---- Mantém o que já foi digitado nesta tela ---- */
+  Rascunho.ligar("#formMovimentacao", "movimentacao", {
+    concluido: {{ 'true' if rascunho_concluido == 'movimentacao' else 'false' }}
+  });
+
+  (async function restaurarMovimentacao() {
+    {% if rascunho_concluido == 'movimentacao' %}return;{% endif %}
+    const dados = Rascunho.ler("movimentacao");
+    if (!selProduto.value) return;
+    await carregarEstoqueDoProduto();
+    if (dados.rua_origem_id && selOrigem.querySelector(`option[value="${dados.rua_origem_id}"]`)) {
+      selOrigem.value = dados.rua_origem_id;
+      atualizarDisponivel();
+    }
+    if (dados.rua_destino_id && selDestino.querySelector(`option[value="${dados.rua_destino_id}"]`)) {
+      selDestino.value = dados.rua_destino_id;
+    }
+    if (dados.quantidade) inputQtd.value = dados.quantidade;
+  })();
+
   // Busca no histórico
   document.getElementById("buscaMov").addEventListener("input", (e) => {
     const termo = e.target.value.trim().toLowerCase();

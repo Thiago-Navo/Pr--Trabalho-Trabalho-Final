@@ -48,7 +48,7 @@
             <td class="qtd">{{ r.qtd_total }}</td>
             {% if papel_logado == 'admin' %}
             <td class="row-actions">
-              <button type="button" title="Editar" class="btn-editar-rua"
+              <button type="button" title="Editar nome da rua" class="btn-editar-rua"
                       data-id="{{ r.id }}" data-nome="{{ r.nome }}">
                 <i class="bi bi-pencil"></i>
               </button>
@@ -69,22 +69,24 @@
     </div>
   </div>
 
-  <div class="modal fade" id="modalRua" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+  <div class="modal fade" id="modalRua" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content" style="border-radius:12px; border:none;">
         <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
           <h5 class="modal-title" style="font-family:var(--font-display);">Nova rua</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
-        <form method="post" action="{{ url_for('nova_rua') }}">
+        {% set rr = rascunho_de('rua') %}
+        <form id="formRua" method="post" action="{{ url_for('nova_rua') }}">
           <div class="modal-body">
             <div class="form-field">
               <label for="nome">Nome / código da rua</label>
-              <input type="text" id="nome" name="nome" required placeholder="Ex: Rua A1">
+              <input type="text" id="nome" name="nome" required placeholder="Ex: Rua A1" value="{{ rr.get('nome', '') }}">
             </div>
             <p class="hint">A categoria da rua é definida automaticamente pelo primeiro produto guardado nela.</p>
           </div>
           <div class="modal-footer" style="border-top:1px solid var(--color-border);">
+            <button type="button" class="btn-ghost" data-limpar-rascunho title="Apaga o que foi digitado">Limpar</button>
             <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancelar</button>
             <button type="submit" class="btn-primary-custom">Salvar rua</button>
           </div>
@@ -94,7 +96,7 @@
   </div>
 
   {% if papel_logado == 'admin' %}
-  <div class="modal fade" id="modalEditarRua" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+  <div class="modal fade" id="modalEditarRua" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content" style="border-radius:12px; border:none;">
         <div class="modal-header" style="border-bottom:1px solid var(--color-border);">
@@ -140,5 +142,18 @@
       abrirEdicaoRua(btn.dataset.id, btn.dataset.nome);
     });
   });
+
+  Rascunho.ligar("#formRua", "rua", {
+    concluido: {{ 'true' if rascunho_concluido == 'rua' else 'false' }},
+    modal: "#modalRua",
+    abrir: {{ 'true' if rascunho_chave == 'rua' else 'false' }}
+  });
+
+  {% if rascunho_chave == 'editar_rua' %}
+  abrirEdicaoRua(
+    "{{ rascunho_extra('editar_rua').get('rua_id', '') }}",
+    {{ rascunho_de('editar_rua').get('nome', '') | tojson }}
+  );
+  {% endif %}
 </script>
 {% endblock %}

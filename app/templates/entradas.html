@@ -129,6 +129,22 @@
 
   selProduto.addEventListener("change", carregarRuasCompativeis);
 
+  /* ---- Mantém o que já foi digitado nesta tela ---- */
+  Rascunho.ligar("#formEntrada", "entrada", {
+    concluido: {{ 'true' if rascunho_concluido == 'entrada' else 'false' }}
+  });
+
+  (async function restaurarEntrada() {
+    {% if rascunho_concluido == 'entrada' %}return;{% endif %}
+    const dados = Rascunho.ler("entrada");
+    if (!selProduto.value) return;
+    await carregarRuasCompativeis();
+    if (dados.rua_id && selRua.querySelector(`option[value="${dados.rua_id}"]`)) {
+      selRua.value = dados.rua_id;
+    }
+    if (dados.quantidade) inputQtd.value = dados.quantidade;
+  })();
+
   document.getElementById("buscaEntrada").addEventListener("input", (e) => {
     const termo = e.target.value.trim().toLowerCase();
     document.querySelectorAll("#tabelaEntradas tbody tr[data-produto]").forEach((tr) => {

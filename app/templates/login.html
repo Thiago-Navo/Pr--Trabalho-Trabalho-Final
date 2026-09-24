@@ -22,15 +22,37 @@
 
   <div class="login-shell">
     <div class="login-side">
-      <div class="brand-mark-lg"><i class="bi bi-hdd-stack"></i></div>
-      <h2>Controle de estoque sem planilha perdida.</h2>
-      <p>Cadastre ruas, produtos, movimente entre endereços e acompanhe o saldo do galpão em tempo real.</p>
+      <div class="login-side-aviso">
+        <strong><i class="bi bi-1-circle"></i> Primeiro acesso?</strong>
+        <span>Você precisa <strong>criar uma conta</strong> antes de conseguir entrar. Esta tela é só para quem já tem login e senha.</span>
+      </div>
     </div>
 
     <div class="login-form-wrap">
       <div class="login-form">
         <h1>Entrar</h1>
         <p>Acesse o sistema de controle de estoque</p>
+
+        {% if not existe_conta %}
+        <div class="aviso-conta aviso-conta-forte">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div>
+            <strong>Ainda não existe nenhuma conta neste sistema.</strong>
+            <span>Não adianta tentar entrar: crie a primeira conta agora. Ela será a conta de administrador.</span>
+            <a href="{{ url_for('cadastro') }}" class="btn-primary-custom">
+              <i class="bi bi-person-plus"></i> Criar a primeira conta
+            </a>
+          </div>
+        </div>
+        {% else %}
+        <div class="aviso-conta">
+          <i class="bi bi-info-circle-fill"></i>
+          <div>
+            <strong>Já tem conta? Entre abaixo.</strong>
+            <span>Se esta é a sua primeira vez aqui, você <strong>precisa criar uma conta primeiro</strong> — o login só funciona depois disso.</span>
+          </div>
+        </div>
+        {% endif %}
 
         {% with mensagens = get_flashed_messages(with_categories=true) %}
           {% if mensagens %}
@@ -45,7 +67,8 @@
         <form method="post" action="{{ url_for('login') }}">
           <div class="form-field">
             <label for="usuario">Usuário</label>
-            <input type="text" id="usuario" name="usuario" required placeholder="seu.usuario" autofocus>
+            <input type="text" id="usuario" name="usuario" required placeholder="seu.usuario"
+                   value="{{ form.get('usuario', '') if form else '' }}" autofocus>
           </div>
           <div class="form-field">
             <label for="senha">Senha</label>
@@ -54,8 +77,14 @@
           <button type="submit" class="btn-primary-custom" style="width:100%; margin-top:8px;">Entrar</button>
         </form>
 
-        <p class="hint" style="margin-top:16px; text-align:center;">
-          Ainda não tem conta? <a href="{{ url_for('cadastro') }}">Cadastre-se</a>
+        <div class="divisor-ou"><span>ou</span></div>
+
+        <a href="{{ url_for('cadastro') }}" class="btn-ghost btn-criar-conta">
+          <i class="bi bi-person-plus"></i> Não tenho conta — quero criar uma
+        </a>
+
+        <p class="hint" style="margin-top:14px; text-align:center;">
+          A conta é criada em menos de um minuto: escolha um usuário e uma senha.
         </p>
       </div>
     </div>

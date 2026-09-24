@@ -12,15 +12,17 @@
   --color-primary-light: #E3F6F5;
 
   --color-warning: #F5A524;
+  --color-warning-dark: #8A5000;
   --color-warning-light: #FDF1DC;
   --color-danger: #E5484D;
-  --color-danger-dark: #C53A3E;
+  --color-danger-dark: #B03337;
   --color-danger-light: #FBE6DF;
   --color-success: #2FA36B;
+  --color-success-dark: #1F7A50;
   --color-success-light: #E1F3EA;
 
   --color-text: #1F2933;
-  --color-text-muted: #64748B;
+  --color-text-muted: #0a0a0a;
   --color-border: #E3E8EF;
 
   /* Tipografia */
@@ -49,15 +51,17 @@
   --color-primary-light: #123230;
 
   --color-warning: #F5A524;
+  --color-warning-dark: #F5A524;
   --color-warning-light: #3A2C10;
   --color-danger: #E5484D;
   --color-danger-dark: #F2696D;
   --color-danger-light: #3A1D12;
   --color-success: #2FA36B;
+  --color-success-dark: #4FCB90;
   --color-success-light: #10301F;
 
   --color-text: #E7ECF2;
-  --color-text-muted: #93A1B0;
+  --color-text-muted: #ffffff;
   --color-border: #232E3B;
 }
 
@@ -121,6 +125,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   top: 0; bottom: 0; left: 0;
   transition: transform 0.2s ease;
   z-index: 1000;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sidebar-brand {
@@ -310,6 +316,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: var(--shadow-card);
   padding: 18px 56px 18px 20px;
   border-left: 4px solid var(--color-primary);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(27, 36, 48, 0.08), 0 2px 14px rgba(27, 36, 48, 0.06);
 }
 
 .kpi-card.warning { border-left-color: var(--color-warning); }
@@ -331,9 +343,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   color: var(--color-primary-dark);
 }
 
-.kpi-card.warning .kpi-icon { background: var(--color-warning-light); color: var(--color-warning); }
-.kpi-card.danger .kpi-icon { background: var(--color-danger-light); color: var(--color-danger); }
-.kpi-card.success .kpi-icon { background: var(--color-success-light); color: var(--color-success); }
+.kpi-card.warning .kpi-icon { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.kpi-card.danger .kpi-icon { background: var(--color-danger-light); color: var(--color-danger-dark); }
+.kpi-card.success .kpi-icon { background: var(--color-success-light); color: var(--color-success-dark); }
 
 .kpi-label {
   font-size: 0.76rem;
@@ -514,9 +526,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   font-weight: 600;
 }
 
-.badge-tag.ok { background: var(--color-success-light); color: var(--color-success); }
-.badge-tag.warning { background: var(--color-warning-light); color: var(--color-warning); }
-.badge-tag.danger { background: var(--color-danger-light); color: var(--color-danger); }
+.badge-tag.ok { background: var(--color-success-light); color: var(--color-success-dark); }
+.badge-tag.warning { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.badge-tag.danger { background: var(--color-danger-light); color: var(--color-danger-dark); }
 .badge-tag.neutral { background: var(--color-bg); color: var(--color-text-muted); }
 
 .row-actions button {
@@ -557,25 +569,66 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .login-side {
-  background: var(--color-sidebar);
-  color: #fff;
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 60px;
+  justify-content: flex-end;
+  padding: 48px;
+  color: #fff;
+  overflow: hidden;
 }
 
-.login-side .brand-mark-lg {
-  width: 52px; height: 52px;
-  border-radius: 12px;
+.brand-mark-lg {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   background: var(--color-primary);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.4rem;
-  margin-bottom: 24px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
-.login-side h2 { font-size: 1.6rem; max-width: 380px; }
-.login-side p { color: #9AA7B5; max-width: 380px; }
+.login-side h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.3;
+  margin: 0 0 10px;
+}
+
+.login-side p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.login-side::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("../img/login-estoque.png");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  filter: brightness(1.3) contrast(1.02);
+}
+
+.login-side::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 15, 22, 0) 0%, rgba(10, 15, 22, 0.05) 50%, rgba(10, 15, 22, 0.35) 100%);
+  pointer-events: none;
+}
+
+.login-side > * {
+  position: relative;
+  z-index: 1;
+}
 
 .login-form-wrap {
   display: flex;
@@ -596,7 +649,31 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 991px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .login-shell { grid-template-columns: 1fr; }
-  .login-side { display: none; }
+  .login-side {
+    min-height: 0;
+    padding: 28px 24px;
+    justify-content: flex-start;
+    /* Foto de fundo sai de cena no mobile: o painel fica baixo (poucos
+       pixels de altura) e a legenda gravada na própria imagem ("TechStock",
+       "Controle de estoque sem planilha perdida...") acabava aparecendo
+       por baixo do texto real (h2/p) da tela de cadastro — duas frases
+       diferentes ocupando o mesmo espaço, uma em cima da outra. Em vez de
+       tentar encaixar a foto numa faixa pequena, usamos um fundo sólido
+       (gradiente escuro com a cor da marca) só nesta largura de tela. */
+    background: linear-gradient(135deg, #101823 0%, #0B1119 100%);
+  }
+  .login-side::before,
+  .login-side::after {
+    display: none;
+  }
+  .brand-mark-lg { width: 44px; height: 44px; font-size: 1.25rem; margin-bottom: 12px; }
+  .login-side h2 { font-size: 1.25rem; }
+  .login-side p { font-size: 0.88rem; }
+  .login-shell .login-side-aviso { display: flex; }
+}
+
+@media (max-width: 480px) {
+  .login-side { padding: 22px 20px; }
 }
 
 @media (max-width: 768px) {
@@ -791,9 +868,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   gap: 12px;
 }
 
-.flash-success { background: var(--color-success-light); color: var(--color-success); }
-.flash-danger  { background: var(--color-danger-light);  color: var(--color-danger); }
-.flash-warning { background: var(--color-warning-light); color: var(--color-warning); }
+.flash-success { background: var(--color-success-light); color: var(--color-success-dark); }
+.flash-danger  { background: var(--color-danger-light);  color: var(--color-danger-dark); }
+.flash-warning { background: var(--color-warning-light); color: var(--color-warning-dark); }
 .flash-info    { background: var(--color-primary-light); color: var(--color-primary-dark); }
 
 .flash-close {
@@ -824,7 +901,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   margin: 0 auto 16px;
   border-radius: 50%;
   background: var(--color-danger-light);
-  color: var(--color-danger);
+  color: var(--color-danger-dark);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -879,3 +956,144 @@ html.nav-carregando::before {
   0%   { background-position: -50% 0; }
   100% { background-position: 150% 0; }
 }
+
+/* ==========================================================================
+   Avisos de criação de conta na tela de login
+   ========================================================================== */
+.login-side-aviso {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgba(17, 24, 33, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.login-side-aviso strong { font-size: 0.92rem; color: #fff; }
+.login-side-aviso i { color: var(--color-primary); }
+
+.aviso-conta {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-primary);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.aviso-conta i { color: var(--color-primary-dark); font-size: 1.05rem; margin-top: 1px; }
+.aviso-conta div { display: flex; flex-direction: column; gap: 4px; }
+.aviso-conta strong { color: var(--color-text); }
+.aviso-conta span { color: var(--color-text-muted); }
+.aviso-conta .btn-primary-custom {
+  margin-top: 8px;
+  align-self: flex-start;
+  text-decoration: none;
+}
+.aviso-conta-forte {
+  background: #FFF4E5;
+  border-color: #F5A524;
+}
+.aviso-conta-forte i { color: #B26A00; }
+[data-theme="dark"] .aviso-conta-forte {
+  background: #3A2A10;
+  border-color: #F5A524;
+}
+
+.divisor-ou {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 14px;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.divisor-ou::before,
+.divisor-ou::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.btn-criar-conta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px dashed var(--color-primary);
+  border-radius: 10px;
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+.btn-criar-conta:hover { background: var(--color-primary-light); }
+
+/* ==========================================================================
+   Painel de categorias pré-definidas (tela de Produtos)
+   ========================================================================== */
+.lista-categorias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+.chip-categoria {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 12px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.chip-categoria small {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.chip-categoria button {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.55;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.chip-categoria button:hover { opacity: 1; color: #E4572E; }
+
+.form-nova-categoria {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.form-nova-categoria input {
+  flex: 1;
+  min-width: 200px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg, transparent);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+.form-nova-categoria .btn-primary-custom { white-space: nowrap; }

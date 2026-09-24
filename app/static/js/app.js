@@ -402,9 +402,22 @@ function criarGraficoCategorias(canvasId, dados) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || typeof Chart === "undefined") return null;
 
-  const paleta = ["#0EA5A0", "#F5A524", "#E4572E", "#2FA36B", "#8B97A6", "#1B2430", "#C7CED6", "#0B8783"];
+  // Paleta com 6 cores fixas — uma para cada categoria "principal" que o
+  // servidor manda (no máximo 6, veja app.py). "Outros" nunca usa a
+  // paleta: fica sempre cinza, para não repetir cor com nenhuma fatia
+  // real e para deixar claro visualmente que é uma soma de sobras.
+  const paleta = ["#0EA5A0", "#F5A524", "#E4572E", "#2FA36B", "#8B5CF6", "#3B82F6"];
+  const CINZA_OUTROS = "#8B97A6";
   const corTexto = corDoTema("--color-text-muted", "#6B7785");
   const corFundo = corDoTema("--color-surface", "#FFFFFF");
+
+  let indiceCor = 0;
+  const cores = dados.labels.map((rotulo) => {
+    if (rotulo === "Outros") return CINZA_OUTROS;
+    const cor = paleta[indiceCor % paleta.length];
+    indiceCor += 1;
+    return cor;
+  });
 
   return new Chart(canvas.getContext("2d"), {
     type: "doughnut",
@@ -412,7 +425,7 @@ function criarGraficoCategorias(canvasId, dados) {
       labels: dados.labels,
       datasets: [{
         data: dados.valores,
-        backgroundColor: paleta,
+        backgroundColor: cores,
         borderWidth: 2,
         borderColor: corFundo,
       }],
@@ -432,6 +445,156 @@ function initGraficoCategoriasServidor(canvasId, dados) {
   registroGraficos[canvasId] = { tipo: "categorias", dados, instancia: null };
   registroGraficos[canvasId].instancia = criarGraficoCategorias(canvasId, dados);
 }
+
+/* ==========================================================================
+   Rascunho de formulário — nada do que for digitado se perde
+   ==========================================================================
+   Problema que isso resolve: a pessoa começava a preencher "Novo produto",
+   fechava o modal sem querer (Esc, clique fora, botão X) ou o servidor
+   recusava o cadastro por algum erro — e o formulário voltava em branco.
+   Todo o trabalho tinha que ser refeito.
+
+   Agora cada tecla digitada é salva no navegador (localStorage). Quando o
+   formulário aparece de novo, os campos voltam preenchidos exatamente como
+   estavam. O rascunho só é apagado em dois casos:
+     1. o cadastro foi concluído com sucesso (o servidor avisa);
+     2. a pessoa clicou em "Limpar formulário" de propósito.
+
+   O servidor também devolve os valores direto no HTML quando dá erro de
+   validação; nesse caso o valor do servidor tem prioridade e o rascunho só
+   completa o que estiver vazio. */
+const Rascunho = (function () {
+  const PREFIXO = "estoque-rascunho:";
+
+  function chaveDe(nome) {
+    return PREFIXO + nome;
+  }
+
+  function camposDe(form) {
+    return Array.from(form.elements).filter(
+      (el) => el.name && el.type !== "password" && el.type !== "submit" && el.type !== "button"
+    );
+  }
+
+  function salvar(form, nome) {
+    const dados = {};
+    camposDe(form).forEach((el) => {
+      if (el.type === "checkbox" || el.type === "radio") {
+        if (el.checked) dados[el.name] = el.value;
+      } else {
+        dados[el.name] = el.value;
+      }
+    });
+    try {
+      localStorage.setItem(chaveDe(nome), JSON.stringify(dados));
+    } catch (e) {
+      /* localStorage cheio ou bloqueado: sem rascunho, mas o app segue */
+    }
+  }
+
+  function ler(nome) {
+    try {
+      return JSON.parse(localStorage.getItem(chaveDe(nome)) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function apagar(nome) {
+    try {
+      localStorage.removeItem(chaveDe(nome));
+    } catch (e) {}
+  }
+
+  function restaurar(form, nome) {
+    const dados = ler(nome);
+    if (!dados || Object.keys(dados).length === 0) return false;
+    let restaurouAlgo = false;
+
+    camposDe(form).forEach((el) => {
+      const valor = dados[el.name];
+      if (valor === undefined || valor === "") return;
+      // Não sobrescreve o que o servidor já devolveu preenchido.
+      if (el.type === "checkbox" || el.type === "radio") {
+        if (!el.checked && el.value === valor) {
+          el.checked = true;
+          restaurouAlgo = true;
+        }
+        return;
+      }
+      if (el.value) return;
+      if (el.tagName === "SELECT" && !Array.from(el.options).some((o) => o.value === valor)) return;
+      el.value = valor;
+      restaurouAlgo = true;
+    });
+
+    return restaurouAlgo;
+  }
+
+  /**
+   * Liga o rascunho a um formulário.
+   * @param {string} seletorForm  seletor do <form>
+   * @param {string} nome         identificador do rascunho (ex.: "produto")
+   * @param {object} opcoes       { concluido: bool, modal: "#idDoModal", abrir: bool }
+   */
+  function ligar(seletorForm, nome, opcoes) {
+    const form = document.querySelector(seletorForm);
+    if (!form) return;
+    const opts = opcoes || {};
+
+    // Cadastro concluído com sucesso: o rascunho já cumpriu seu papel.
+    if (opts.concluido) {
+      apagar(nome);
+      form.reset();
+    } else {
+      restaurar(form, nome);
+    }
+
+    if (!form.dataset.rascunhoLigado) {
+      form.dataset.rascunhoLigado = "true";
+      ["input", "change"].forEach((evento) => {
+        form.addEventListener(evento, () => salvar(form, nome));
+      });
+    }
+
+    // Botão opcional "Limpar formulário": única forma de descartar o que
+    // foi digitado — e sempre por decisão explícita da pessoa.
+    const btnLimpar = form.querySelector("[data-limpar-rascunho]");
+    if (btnLimpar && !btnLimpar.dataset.ligado) {
+      btnLimpar.dataset.ligado = "true";
+      btnLimpar.addEventListener("click", () => {
+        apagar(nome);
+        form.reset();
+        form.querySelectorAll("input, select, textarea").forEach((el) => {
+          if (el.type !== "hidden") el.value = "";
+        });
+      });
+    }
+
+    // Reabre o modal quando o servidor recusou o cadastro, para a pessoa
+    // ver o erro e corrigir sem começar do zero.
+    if (opts.modal && opts.abrir && typeof bootstrap !== "undefined") {
+      const modalEl = document.querySelector(opts.modal);
+      if (modalEl) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+    }
+
+    // Quando o modal é aberto de novo, repõe o rascunho (caso a pessoa
+    // tenha fechado a janela no meio do preenchimento).
+    if (opts.modal) {
+      const modalEl = document.querySelector(opts.modal);
+      if (modalEl && !modalEl.dataset.rascunhoLigado) {
+        modalEl.dataset.rascunhoLigado = "true";
+        modalEl.addEventListener("shown.bs.modal", () => restaurar(form, nome));
+      }
+    }
+  }
+
+  return { ligar, salvar, restaurar, apagar, ler };
+})();
+
+window.Rascunho = Rascunho;
 
 /* ---- Inicialização comum a todas as páginas ---- */
 document.addEventListener("DOMContentLoaded", () => {

@@ -122,6 +122,7 @@ def login():
                 return redirect(destino)
 
         flash("Usuário ou senha inválidos.", "danger")
+        return render_template("login.html", form=request.form)
 
     return render_template("login.html")
 
@@ -612,6 +613,7 @@ def nova_rua():
 
     db.execute("INSERT INTO ruas (nome, tipo) VALUES (?, NULL)", (nome,))
     db.commit()
+    session["rascunho_concluido"] = "rua"
     flash(f'Rua "{nome}" criada. Ela ficará disponível para qualquer categoria até receber o primeiro produto.', "success")
     return redirect(url_for("ruas"))
 
@@ -685,6 +687,10 @@ def produtos():
     ruas_disponiveis = db.execute("SELECT * FROM ruas ORDER BY nome").fetchall()
     tem_ruas = len(ruas_disponiveis) > 0
 
+    categorias = db.execute("SELECT * FROM categorias ORDER BY nome").fetchall()
+    uso_rows = db.execute("SELECT categoria, COUNT(*) AS n FROM produtos WHERE categoria IS NOT NULL GROUP BY categoria").fetchall()
+    uso_categorias = {r["categoria"]: r["n"] for r in uso_rows}
+
     localizacoes = {}
     for p in lista:
         locs = db.execute("""
@@ -702,6 +708,8 @@ def produtos():
         tem_ruas=tem_ruas,
         termo=termo,
         localizacoes=localizacoes,
+        categorias=categorias,
+        uso_categorias=uso_categorias,
     )
 
 
@@ -718,7 +726,33 @@ def novo_produto():
     nome = request.form.get("nome", "").strip()
     sku = request.form.get("sku", "").strip()
     categoria = request.form.get("categoria", "").strip()
-    rua_id = request.form.get("rua_id", type=int)
+    if categoria == "__nova__":
+        categoria = request.form.get("nova_categoria", "").strip()
+        if categoria:
+            existe_cat = db.execute("SELECT 1 FROM categorias WHERE LOWER(nome) = LOWER(?)", (categoria,)).fetchone()
+            if not existe_cat:
+                db.execute("INSERT INTO categorias (nome) VALUES (?)", (categoria,))
+                db.commit()
+
+    rua_id_raw = request.form.get("rua_id", "").strip()
+    if rua_id_raw == "__nova__":
+        nova_rua = request.form.get("nova_rua", "").strip()
+        if nova_rua:
+            existe_rua = db.execute("SELECT id FROM ruas WHERE LOWER(nome) = LOWER(?)", (nova_rua,)).fetchone()
+            if existe_rua:
+                rua_id = existe_rua["id"]
+            else:
+                cur = db.execute("INSERT INTO ruas (nome, tipo) VALUES (?, ?)", (nova_rua, categoria or None))
+                db.commit()
+                rua_id = cur.lastrowid
+        else:
+            rua_id = None
+    else:
+        try:
+            rua_id = int(rua_id_raw) if rua_id_raw else None
+        except ValueError:
+            rua_id = None
+
     qtd = request.form.get("qtd", type=int)
     estoque_min = request.form.get("estoque_min", type=int)
     estoque_max = request.form.get("estoque_max", type=int)
@@ -776,6 +810,7 @@ def novo_produto():
         db.execute("UPDATE ruas SET tipo = ? WHERE id = ?", (categoria, rua_id))
 
     produto_id = repo.salvar(prod, rua_id=rua_id, qtd_inicial=qtd)
+    session["rascunho_concluido"] = "produto"
 
     flash(f'Produto "{nome}" cadastrado com sucesso em "{rua["nome"]}".', "success")
     return redirect(url_for("produtos"))
@@ -792,6 +827,7 @@ def editar_produto(produto_id):
         return redirect(url_for("produtos"))
 
     nome = request.form.get("nome", "").strip()
+    categoria = request.form.get("categoria", "").strip()
     estoque_min = request.form.get("estoque_min", type=int)
     estoque_max = request.form.get("estoque_max", type=int)
 
@@ -808,13 +844,52 @@ def editar_produto(produto_id):
             flash(e, "danger")
         return redirect(request.referrer or url_for("produtos"))
 
-    db.execute(
-        "UPDATE produtos SET nome = ?, estoque_min = ?, estoque_max = ?, atualizado_em = datetime('now') WHERE id = ?",
-        (nome, estoque_min, estoque_max, produto_id),
-    )
+    if categoria:
+        db.execute(
+            "UPDATE produtos SET nome = ?, categoria = ?, estoque_min = ?, estoque_max = ?, atualizado_em = datetime('now') WHERE id = ?",
+            (nome, categoria, estoque_min, estoque_max, produto_id),
+        )
+    else:
+        db.execute(
+            "UPDATE produtos SET nome = ?, estoque_min = ?, estoque_max = ?, atualizado_em = datetime('now') WHERE id = ?",
+            (nome, estoque_min, estoque_max, produto_id),
+        )
     db.commit()
     flash(f'Produto "{nome}" atualizado com sucesso.', "success")
     return redirect(request.referrer or url_for("produtos"))
+
+
+@front_bp.route("/categorias/nova", methods=["POST"], endpoint="nova_categoria")
+@admin_required
+def nova_categoria():
+    db = get_db()
+    nome = request.form.get("nome", "").strip()
+    if not nome:
+        flash("Informe o nome da categoria.", "danger")
+    else:
+        existe = db.execute("SELECT 1 FROM categorias WHERE LOWER(nome) = LOWER(?)", (nome,)).fetchone()
+        if existe:
+            flash(f'A categoria "{nome}" já existe.', "warning")
+        else:
+            db.execute("INSERT INTO categorias (nome) VALUES (?)", (nome,))
+            db.commit()
+            session["rascunho_concluido"] = "categoria"
+            flash(f'Categoria "{nome}" cadastrada com sucesso!', "success")
+    return redirect(url_for("produtos"))
+
+
+@front_bp.route("/categorias/<int:categoria_id>/excluir", methods=["POST"], endpoint="excluir_categoria")
+@admin_required
+def excluir_categoria(categoria_id):
+    db = get_db()
+    cat = db.execute("SELECT * FROM categorias WHERE id = ?", (categoria_id,)).fetchone()
+    if cat:
+        db.execute("DELETE FROM categorias WHERE id = ?", (categoria_id,))
+        db.commit()
+        flash(f'Categoria "{cat["nome"]}" excluída com sucesso.', "success")
+    else:
+        flash("Categoria não encontrada.", "danger")
+    return redirect(url_for("produtos"))
 
 
 @front_bp.route("/produtos/<int:produto_id>/excluir", methods=["POST"], endpoint="excluir_produto")
@@ -957,6 +1032,7 @@ def nova_movimentacao():
     """, (produto_id, rua_origem_id, rua_destino_id, quantidade, session.get("usuario_id", 1)))
 
     db.commit()
+    session["rascunho_concluido"] = "movimentacao"
     flash(f'{quantidade} unidade(s) de "{produto["nome"]}" movida(s) com sucesso.', "success")
     return redirect(url_for("movimentacoes"))
 
@@ -1034,6 +1110,7 @@ def nova_entrada():
     """, (produto_id, rua_id, quantidade, session.get("usuario_id", 1)))
 
     db.commit()
+    session["rascunho_concluido"] = "entrada"
     flash(f'Entrada de {quantidade} unidade(s) de "{produto["nome"]}" registrada em "{rua["nome"]}".', "success")
     return redirect(url_for("entradas"))
 
@@ -1105,5 +1182,6 @@ def nova_saida():
     """, (produto_id, rua_id, quantidade, motivo or None, session.get("usuario_id", 1)))
 
     db.commit()
+    session["rascunho_concluido"] = "saida"
     flash(f'Saída de {quantidade} unidade(s) de "{produto["nome"]}" registrada.', "success")
     return redirect(url_for("saidas"))
