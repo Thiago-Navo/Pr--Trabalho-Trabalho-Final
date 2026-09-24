@@ -555,6 +555,15 @@ def exportar_relatorio():
         // Dados embutidos diretamente no HTML pelo Flask para independência total de servidor
         const PRODUTOS = {produtos_json};
 
+        function esc(str) {{
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }}
+
         function renderizar() {{
             const termo = document.getElementById("busca").value.toLowerCase().trim();
             const cat = document.getElementById("filtroCategoria").value;
@@ -573,12 +582,12 @@ def exportar_relatorio():
             }} else {{
                 tbody.innerHTML = filtrados.map(p => `
                     <tr>
-                        <td><strong>${{p.nome}}</strong></td>
-                        <td><code>${{p.sku}}</code></td>
-                        <td><span class="tag">${{p.categoria}}</span></td>
+                        <td><strong>${{esc(p.nome)}}</strong></td>
+                        <td><code>${{esc(p.sku)}}</code></td>
+                        <td><span class="tag">${{esc(p.categoria)}}</span></td>
                         <td><strong>${{p.qtd}}</strong></td>
                         <td>${{p.min}} / ${{p.max}}</td>
-                        <td><span class="badge badge-${{p.status.toLowerCase()}}">${{p.status}}</span></td>
+                        <td><span class="badge badge-${{esc(p.status.toLowerCase())}}">${{esc(p.status)}}</span></td>
                     </tr>
                 `).join("");
             }}
@@ -586,7 +595,11 @@ def exportar_relatorio():
             document.getElementById("contadorItens").innerText = `Exibindo ${{filtrados.length}} de ${{PRODUTOS.length}} produtos cadastrados`;
         }}
 
-        document.getElementById("busca").addEventListener("input", renderizar);
+        let debounceTimer;
+        document.getElementById("busca").addEventListener("input", () => {{
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(renderizar, 80);
+        }});
         document.getElementById("filtroCategoria").addEventListener("change", renderizar);
         document.getElementById("filtroStatus").addEventListener("change", renderizar);
 
