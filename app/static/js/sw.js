@@ -10,7 +10,7 @@
  * estáticos que não mudam de usuário para usuário.
  */
 
-const CACHE_NAME = "techstock-cache-v1";
+const CACHE_NAME = "techstock-cache-v2";
 
 const ARQUIVOS_ESTATICOS = [
   "/static/css/style.css",
@@ -46,6 +46,14 @@ self.addEventListener("activate", (evento) => {
 self.addEventListener("fetch", (evento) => {
   const url = new URL(evento.request.url);
 
+  // ÁUDIO E STREAMING DE MÍDIA:
+  // Nunca intercepte requisições de áudio (/static/audio/) ou requisições Range (bytes=...).
+  // O Cache API do Service Worker não suporta respostas parciais HTTP 206 e
+  // causa erros de 'Failed to execute put on Cache' no Chrome/Edge, quebrando o player.
+  if (url.pathname.startsWith("/static/audio/") || evento.request.headers.get("range")) {
+    return;
+  }
+
   // Só intercepta pedidos de arquivos estáticos (mesma origem).
   // Páginas (dashboard, produtos, login...) sempre vão direto pra rede,
   // pra nunca mostrar dado de estoque desatualizado.
@@ -58,8 +66,10 @@ self.addEventListener("fetch", (evento) => {
       if (respostaCache) return respostaCache;
 
       return fetch(evento.request).then((respostaRede) => {
-        const clone = respostaRede.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, clone));
+        if (respostaRede.status === 200 && evento.request.method === "GET") {
+          const clone = respostaRede.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, clone)).catch(() => {});
+        }
         return respostaRede;
       });
     })

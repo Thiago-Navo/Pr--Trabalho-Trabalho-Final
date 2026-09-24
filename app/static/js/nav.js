@@ -24,6 +24,7 @@
   const SELETOR_SCRIPTS = "#app-scripts";
 
   let carregando = false;
+  let abortControllerAtual = null;
 
   function ehLinkInterno(link) {
     if (!link || !link.getAttribute("href")) return false;
@@ -49,19 +50,23 @@
   function extrairEExecutarScripts(container) {
     if (!container) return;
     Array.from(container.querySelectorAll("script")).forEach((antigo) => {
-      const novo = document.createElement("script");
-      Array.from(antigo.attributes).forEach((attr) => novo.setAttribute(attr.name, attr.value));
-      if (antigo.src) {
-        novo.src = antigo.src;
-      } else {
-        // Páginas diferentes declaram "const"/"let" com os mesmos nomes
-        // (ex.: "selProduto" existe em várias telas). Um <script> comum
-        // reexecutado compartilharia o mesmo escopo do topo e a segunda
-        // execução quebraria com "identifier already declared". Isolando
-        // em uma função, cada execução fica independente.
-        novo.textContent = "(function () {\n" + antigo.textContent + "\n})();";
+      try {
+        const novo = document.createElement("script");
+        Array.from(antigo.attributes).forEach((attr) => novo.setAttribute(attr.name, attr.value));
+        if (antigo.src) {
+          novo.src = antigo.src;
+        } else {
+          // Páginas diferentes declaram "const"/"let" com os mesmos nomes
+          // (ex.: "selProduto" existe em várias telas). Um <script> comum
+          // reexecutado compartilharia o mesmo escopo do topo e a segunda
+          // execução quebraria com "identifier already declared". Isolando
+          // em uma função, cada execução fica independente.
+          novo.textContent = "(function () {\n" + antigo.textContent + "\n})();";
+        }
+        antigo.replaceWith(novo);
+      } catch (errScript) {
+        console.warn("Aviso ao executar script de tela:", errScript);
       }
-      antigo.replaceWith(novo);
     });
   }
 
@@ -90,7 +95,15 @@
 
   async function irPara(url, opcoes) {
     const { push, method, body } = Object.assign({ push: true, method: "GET", body: null }, opcoes);
-    if (carregando) return;
+
+    // Se o usuário clicou rapidamente em outro link, cancela a busca anterior
+    // e atende imediatamente a nova página clicada, sem travar nem recarregar
+    if (abortControllerAtual) {
+      abortControllerAtual.abort();
+    }
+    abortControllerAtual = new AbortController();
+    const sinal = abortControllerAtual.signal;
+
     carregando = true;
     mostrarProgresso(true);
 
@@ -98,6 +111,7 @@
       const resposta = await fetch(url, {
         method,
         body,
+        signal: sinal,
         credentials: "same-origin",
         headers: { "X-Requested-With": "fetch-nav" },
       });
@@ -142,13 +156,17 @@
       window.scrollTo(0, 0);
       document.querySelector(".sidebar")?.classList.remove("is-open");
     } catch (erro) {
-      // Falha de rede ou algo inesperado: cai para navegação normal do
-      // navegador. A música pode parar nesse caso raro, mas o app
-      // continua funcionando.
+      // Se foi cancelamento por clique rápido em outro link, ignora sem recarregar a página
+      if (erro.name === "AbortError") {
+        return;
+      }
+      console.warn("Navegação AJAX falhou, usando navegação padrão:", erro);
       window.location.href = url;
     } finally {
-      carregando = false;
-      mostrarProgresso(false);
+      if (abortControllerAtual && abortControllerAtual.signal === sinal) {
+        carregando = false;
+        mostrarProgresso(false);
+      }
     }
   }
 

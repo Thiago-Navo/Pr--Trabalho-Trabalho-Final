@@ -70,6 +70,14 @@ def create_app() -> Flask:
     # Registra filtro Jinja2 para padrão de data e hora brasileiro
     app.jinja_env.filters["data_br"] = formatar_data_br
 
+    def url_para_pagina(num_pagina):
+        from flask import request
+        args = request.args.to_dict()
+        args["page"] = num_pagina
+        return url_for(request.endpoint, **args)
+
+    app.jinja_env.globals["url_para_pagina"] = url_para_pagina
+
     # Auto-inicializa o banco e seed se for a primeira vez rodando no PC
     init_database_if_needed()
 
@@ -103,6 +111,7 @@ def create_app() -> Flask:
             "rascunho_concluido": session.pop("rascunho_concluido", None),
             "rascunho_chave": session.pop("rascunho_chave", None),
             "existe_conta": existe_conta,
+            "url_para_pagina": url_para_pagina,
         }
 
     @app.errorhandler(404)

@@ -25,15 +25,35 @@ class Produto:
     atualizado_em: Optional[str] = None
 
     def validar(self) -> None:
-        """Aplica validações de negócio ao produto."""
+        """Aplica validações de negócio ao produto com proteção contra overflow e sobrecarga."""
         if not self.nome or len(self.nome.strip()) < 2:
             raise ValueError("O nome do produto deve ter ao menos 2 caracteres.")
+        if len(self.nome) > 150:
+            raise ValueError("O nome do produto não pode exceder 150 caracteres.")
         if not self.sku or len(self.sku.strip()) < 2:
             raise ValueError("O SKU do produto é obrigatório e deve ter ao menos 2 caracteres.")
+        if len(self.sku) > 50:
+            raise ValueError("O SKU do produto não pode exceder 50 caracteres.")
+        if self.categoria and len(self.categoria) > 80:
+            raise ValueError("A categoria do produto não pode exceder 80 caracteres.")
+
+        # Proteção contra Integer Overflow em 64-bit SQLite
+        LIMITE_MAX_UNIDADES = 1_000_000_000
+        if self.quantidade > LIMITE_MAX_UNIDADES or self.estoque_max > LIMITE_MAX_UNIDADES or self.estoque_min > LIMITE_MAX_UNIDADES:
+            raise ValueError("Os valores de quantidade e limites de estoque não podem exceder 1.000.000.000 unidades.")
+        if self.preco > 1_000_000_000_00:
+            raise ValueError("O preço do produto excede o limite operacional permitido.")
+
         if self.estoque_min < 0:
             raise ValueError("O estoque mínimo não pode ser negativo.")
+        if self.estoque_max <= 0:
+            raise ValueError("O estoque máximo deve ser maior que zero.")
         if self.estoque_max < self.estoque_min:
             raise ValueError("O estoque máximo não pode ser menor que o estoque mínimo.")
+        if self.quantidade < 0:
+            raise ValueError("A quantidade não pode ser negativa.")
+        if self.quantidade > self.estoque_max:
+            raise ValueError("A quantidade inicial não pode exceder a capacidade máxima do estoque configurada.")
         if self.preco < 0:
             raise ValueError("O preço não pode ser negativo.")
 

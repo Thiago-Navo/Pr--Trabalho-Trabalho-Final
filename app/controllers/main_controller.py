@@ -7,13 +7,15 @@ from functools import wraps
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, session, flash, jsonify, g, Response
+    url_for, session, flash, jsonify, g, Response,
+    send_from_directory, current_app
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.database import database
 from app.models.produto import Produto
 from app.repositories.produto_repository import ProdutoRepository
+from app.utils.paginacao import Paginacao
 
 logger = logging.getLogger("techstock.controller")
 
@@ -633,6 +635,11 @@ def exportar_relatorio():
 @login_required
 def ruas():
     db = get_db()
+    page = request.args.get("page", 1, type=int)
+    por_pagina = 12
+    total_itens = db.execute("SELECT COUNT(*) AS total FROM ruas").fetchone()["total"]
+    offset = max(0, (page - 1) * por_pagina)
+
     lista = db.execute("""
         SELECT r.*, COALESCE(SUM(e.quantidade), 0) AS qtd_total,
                COUNT(DISTINCT e.produto_id) AS produtos_distintos
@@ -640,8 +647,11 @@ def ruas():
         LEFT JOIN estoque e ON e.rua_id = r.id AND e.quantidade > 0
         GROUP BY r.id
         ORDER BY r.nome
-    """).fetchall()
-    return render_template("ruas.html", ruas=lista)
+        LIMIT ? OFFSET ?
+    """, (por_pagina, offset)).fetchall()
+
+    paginacao = Paginacao(lista, page, por_pagina, total_itens)
+    return render_template("ruas.html", ruas=lista, paginacao=paginacao)
 
 
 @front_bp.route("/ruas/nova", methods=["POST"], endpoint="nova_rua")
@@ -717,7 +727,18 @@ def excluir_rua(rua_id):
 def produtos():
     db = get_db()
     termo = request.args.get("q", "").strip()
+    page = request.args.get("page", 1, type=int)
+    por_pagina = 12
 
+    # Contagem total de produtos para paginação
+    count_query = "SELECT COUNT(*) AS total FROM produtos p WHERE 1=1"
+    params_count = []
+    if termo:
+        count_query += " AND (p.nome LIKE ? OR p.sku LIKE ? OR p.categoria LIKE ?)"
+        params_count += [f"%{termo}%", f"%{termo}%", f"%{termo}%"]
+    total_itens = db.execute(count_query, params_count).fetchone()["total"]
+
+    offset = max(0, (page - 1) * por_pagina)
     query = """
         SELECT p.*, COALESCE(SUM(e.quantidade), 0) AS qtd_total
         FROM produtos p
@@ -728,9 +749,12 @@ def produtos():
     if termo:
         query += " AND (p.nome LIKE ? OR p.sku LIKE ? OR p.categoria LIKE ?)"
         params += [f"%{termo}%", f"%{termo}%", f"%{termo}%"]
-    query += " GROUP BY p.id ORDER BY p.nome"
+    query += " GROUP BY p.id ORDER BY p.nome LIMIT ? OFFSET ?"
+    params += [por_pagina, offset]
 
     lista = db.execute(query, params).fetchall()
+    paginacao = Paginacao(lista, page, por_pagina, total_itens)
+
     ruas_disponiveis = db.execute("SELECT * FROM ruas ORDER BY nome").fetchall()
     tem_ruas = len(ruas_disponiveis) > 0
 
@@ -751,6 +775,7 @@ def produtos():
     return render_template(
         "produtos.html",
         produtos=lista,
+        paginacao=paginacao,
         ruas=ruas_disponiveis,
         tem_ruas=tem_ruas,
         termo=termo,
@@ -804,34 +829,52 @@ def novo_produto():
     estoque_min = request.form.get("estoque_min", type=int)
     estoque_max = request.form.get("estoque_max", type=int)
 
+    LIMITE_MAX_INT = 1_000_000_000
     erros = []
     if not nome:
         erros.append("Informe o nome do produto.")
+    elif len(nome) > 150:
+        erros.append("O nome do produto não pode exceder 150 caracteres.")
+
     if not sku:
         erros.append("Informe o código (SKU).")
+    elif len(sku) > 50:
+        erros.append("O SKU do produto não pode exceder 50 caracteres.")
+
     if not categoria:
         erros.append("Informe a categoria/tipo do produto.")
+    elif len(categoria) > 80:
+        erros.append("A categoria não pode exceder 80 caracteres.")
+
     if not rua_id:
         erros.append("Escolha a rua onde o produto será guardado.")
-    if qtd is None or qtd < 0:
-        erros.append("Informe uma quantidade inicial válida.")
-    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max < 0:
-        erros.append("Informe estoque mínimo e máximo válidos.")
+
+    if qtd is None or qtd < 0 or qtd > LIMITE_MAX_INT:
+        erros.append("Informe uma quantidade inicial válida (entre 0 e 1.000.000.000).")
+
+    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max <= 0:
+        erros.append("Informe estoque mínimo e máximo válidos (máximo deve ser maior que zero).")
+    elif estoque_min > LIMITE_MAX_INT or estoque_max > LIMITE_MAX_INT:
+        erros.append("Os limites de estoque não podem exceder 1.000.000.000.")
     elif estoque_max < estoque_min:
         erros.append("O estoque máximo não pode ser menor que o mínimo.")
+    elif qtd is not None and estoque_max is not None and qtd > estoque_max:
+        erros.append("A quantidade inicial não pode exceder a capacidade máxima do estoque configurada.")
 
     prod = Produto(
         id=None,
         nome=nome,
         sku=sku,
         categoria=categoria,
+        quantidade=qtd if qtd is not None else 0,
         estoque_min=estoque_min if estoque_min is not None else 0,
         estoque_max=estoque_max if estoque_max is not None else 100,
     )
     try:
         prod.validar()
     except ValueError as val_err:
-        erros.append(str(val_err))
+        if str(val_err) not in erros:
+            erros.append(str(val_err))
 
     rua = None
     if rua_id and not erros:
@@ -878,11 +921,17 @@ def editar_produto(produto_id):
     estoque_min = request.form.get("estoque_min", type=int)
     estoque_max = request.form.get("estoque_max", type=int)
 
+    LIMITE_MAX_INT = 1_000_000_000
     erros = []
     if not nome:
         erros.append("Informe o nome do produto.")
-    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max < 0:
-        erros.append("Informe estoque mínimo e máximo válidos.")
+    elif len(nome) > 150:
+        erros.append("O nome do produto não pode exceder 150 caracteres.")
+
+    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max <= 0:
+        erros.append("Informe estoque mínimo e máximo válidos (máximo deve ser maior que zero).")
+    elif estoque_min > LIMITE_MAX_INT or estoque_max > LIMITE_MAX_INT:
+        erros.append("Os limites de estoque não podem exceder 1.000.000.000.")
     elif estoque_max < estoque_min:
         erros.append("O estoque máximo não pode ser menor que o mínimo.")
 
@@ -961,6 +1010,11 @@ def excluir_produto(produto_id):
 @login_required
 def movimentacoes():
     db = get_db()
+    page = request.args.get("page", 1, type=int)
+    por_pagina = 15
+    total_itens = db.execute("SELECT COUNT(*) AS total FROM movimentacoes").fetchone()["total"]
+    offset = max(0, (page - 1) * por_pagina)
+
     produtos_lista = db.execute("SELECT * FROM produtos ORDER BY nome").fetchall()
 
     historico = db.execute("""
@@ -973,10 +1027,11 @@ def movimentacoes():
         LEFT JOIN ruas rd ON rd.id = m.rua_destino_id
         LEFT JOIN usuarios u ON u.id = m.usuario_id
         ORDER BY m.data DESC, m.id DESC
-        LIMIT 200
-    """).fetchall()
+        LIMIT ? OFFSET ?
+    """, (por_pagina, offset)).fetchall()
 
-    return render_template("movimentacoes.html", produtos=produtos_lista, historico=historico)
+    paginacao = Paginacao(historico, page, por_pagina, total_itens)
+    return render_template("movimentacoes.html", produtos=produtos_lista, historico=historico, paginacao=paginacao)
 
 
 @front_bp.route("/api/produtos/<int:produto_id>/estoque", endpoint="api_estoque_produto")
@@ -1092,6 +1147,11 @@ def nova_movimentacao():
 @login_required
 def entradas():
     db = get_db()
+    page = request.args.get("page", 1, type=int)
+    por_pagina = 15
+    total_itens = db.execute("SELECT COUNT(*) AS total FROM entradas").fetchone()["total"]
+    offset = max(0, (page - 1) * por_pagina)
+
     produtos_lista = db.execute("SELECT * FROM produtos ORDER BY nome").fetchall()
 
     historico = db.execute("""
@@ -1102,10 +1162,11 @@ def entradas():
         JOIN ruas r ON r.id = e.rua_id
         LEFT JOIN usuarios u ON u.id = e.usuario_id
         ORDER BY e.data DESC, e.id DESC
-        LIMIT 200
-    """).fetchall()
+        LIMIT ? OFFSET ?
+    """, (por_pagina, offset)).fetchall()
 
-    return render_template("entradas.html", produtos=produtos_lista, historico=historico)
+    paginacao = Paginacao(historico, page, por_pagina, total_itens)
+    return render_template("entradas.html", produtos=produtos_lista, historico=historico, paginacao=paginacao)
 
 
 @front_bp.route("/entradas/nova", methods=["POST"], endpoint="nova_entrada")
@@ -1170,6 +1231,11 @@ def nova_entrada():
 @login_required
 def saidas():
     db = get_db()
+    page = request.args.get("page", 1, type=int)
+    por_pagina = 15
+    total_itens = db.execute("SELECT COUNT(*) AS total FROM saidas").fetchone()["total"]
+    offset = max(0, (page - 1) * por_pagina)
+
     produtos_lista = db.execute("SELECT * FROM produtos ORDER BY nome").fetchall()
 
     historico = db.execute("""
@@ -1180,10 +1246,11 @@ def saidas():
         JOIN ruas r ON r.id = s.rua_id
         LEFT JOIN usuarios u ON u.id = s.usuario_id
         ORDER BY s.data DESC, s.id DESC
-        LIMIT 200
-    """).fetchall()
+        LIMIT ? OFFSET ?
+    """, (por_pagina, offset)).fetchall()
 
-    return render_template("saidas.html", produtos=produtos_lista, historico=historico)
+    paginacao = Paginacao(historico, page, por_pagina, total_itens)
+    return render_template("saidas.html", produtos=produtos_lista, historico=historico, paginacao=paginacao)
 
 
 @front_bp.route("/saidas/nova", methods=["POST"], endpoint="nova_saida")
@@ -1232,3 +1299,12 @@ def nova_saida():
     session["rascunho_concluido"] = "saida"
     flash(f'Saída de {quantidade} unidade(s) de "{produto["nome"]}" registrada.', "success")
     return redirect(url_for("saidas"))
+
+
+@front_bp.route("/sw.js")
+def service_worker():
+    response = send_from_directory(current_app.static_folder, "js/sw.js")
+    response.headers["Content-Type"] = "application/javascript"
+    response.headers["Service-Worker-Allowed"] = "/"
+    return response
+
