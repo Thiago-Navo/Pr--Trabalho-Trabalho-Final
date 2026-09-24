@@ -278,15 +278,15 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .user-role-admin {
-  background: rgba(14, 165, 160, 0.12);
-  color: #0B8783;
-  border: 1px solid rgba(14, 165, 160, 0.35);
+  background: rgba(245, 165, 36, 0.14);
+  color: #B45309;
+  border: 1px solid rgba(245, 165, 36, 0.45);
 }
 
 [data-theme="dark"] .user-role-admin {
-  background: rgba(14, 165, 160, 0.22);
-  color: #2DD4BF;
-  border-color: rgba(45, 212, 191, 0.45);
+  background: rgba(245, 165, 36, 0.22);
+  color: #F5A524;
+  border-color: rgba(245, 165, 36, 0.55);
 }
 
 .user-role-operador {

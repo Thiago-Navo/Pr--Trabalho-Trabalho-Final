@@ -804,34 +804,52 @@ def novo_produto():
     estoque_min = request.form.get("estoque_min", type=int)
     estoque_max = request.form.get("estoque_max", type=int)
 
+    LIMITE_MAX_INT = 1_000_000_000
     erros = []
     if not nome:
         erros.append("Informe o nome do produto.")
+    elif len(nome) > 150:
+        erros.append("O nome do produto não pode exceder 150 caracteres.")
+
     if not sku:
         erros.append("Informe o código (SKU).")
+    elif len(sku) > 50:
+        erros.append("O SKU do produto não pode exceder 50 caracteres.")
+
     if not categoria:
         erros.append("Informe a categoria/tipo do produto.")
+    elif len(categoria) > 80:
+        erros.append("A categoria não pode exceder 80 caracteres.")
+
     if not rua_id:
         erros.append("Escolha a rua onde o produto será guardado.")
-    if qtd is None or qtd < 0:
-        erros.append("Informe uma quantidade inicial válida.")
-    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max < 0:
-        erros.append("Informe estoque mínimo e máximo válidos.")
+
+    if qtd is None or qtd < 0 or qtd > LIMITE_MAX_INT:
+        erros.append("Informe uma quantidade inicial válida (entre 0 e 1.000.000.000).")
+
+    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max <= 0:
+        erros.append("Informe estoque mínimo e máximo válidos (máximo deve ser maior que zero).")
+    elif estoque_min > LIMITE_MAX_INT or estoque_max > LIMITE_MAX_INT:
+        erros.append("Os limites de estoque não podem exceder 1.000.000.000.")
     elif estoque_max < estoque_min:
         erros.append("O estoque máximo não pode ser menor que o mínimo.")
+    elif qtd is not None and estoque_max is not None and qtd > estoque_max:
+        erros.append("A quantidade inicial não pode exceder a capacidade máxima do estoque configurada.")
 
     prod = Produto(
         id=None,
         nome=nome,
         sku=sku,
         categoria=categoria,
+        quantidade=qtd if qtd is not None else 0,
         estoque_min=estoque_min if estoque_min is not None else 0,
         estoque_max=estoque_max if estoque_max is not None else 100,
     )
     try:
         prod.validar()
     except ValueError as val_err:
-        erros.append(str(val_err))
+        if str(val_err) not in erros:
+            erros.append(str(val_err))
 
     rua = None
     if rua_id and not erros:
@@ -878,11 +896,17 @@ def editar_produto(produto_id):
     estoque_min = request.form.get("estoque_min", type=int)
     estoque_max = request.form.get("estoque_max", type=int)
 
+    LIMITE_MAX_INT = 1_000_000_000
     erros = []
     if not nome:
         erros.append("Informe o nome do produto.")
-    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max < 0:
-        erros.append("Informe estoque mínimo e máximo válidos.")
+    elif len(nome) > 150:
+        erros.append("O nome do produto não pode exceder 150 caracteres.")
+
+    if estoque_min is None or estoque_max is None or estoque_min < 0 or estoque_max <= 0:
+        erros.append("Informe estoque mínimo e máximo válidos (máximo deve ser maior que zero).")
+    elif estoque_min > LIMITE_MAX_INT or estoque_max > LIMITE_MAX_INT:
+        erros.append("Os limites de estoque não podem exceder 1.000.000.000.")
     elif estoque_max < estoque_min:
         erros.append("O estoque máximo não pode ser menor que o mínimo.")
 

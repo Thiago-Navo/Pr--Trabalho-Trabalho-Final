@@ -15,6 +15,7 @@ venv/
 # Banco de dados
 *.db
 *.sqlite
+*.bak*
 
 # Sistema
 .DS_Store

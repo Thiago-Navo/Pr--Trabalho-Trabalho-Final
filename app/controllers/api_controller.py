@@ -257,15 +257,32 @@ def criar_produto():
     quantidade = dados.get('quantidade', 0)
     categoria_id = dados.get('categoria_id')
 
-    if not nome:
+    if not nome or not isinstance(nome, str) or not nome.strip():
         return jsonify({"erro": "O campo 'nome' é obrigatório"}), 400
+    if len(nome) > 150:
+        return jsonify({"erro": "O campo 'nome' não pode exceder 150 caracteres"}), 400
+
+    LIMITE_MAX_INT = 1_000_000_000
+    try:
+        quantidade = int(quantidade)
+        if quantidade < 0 or quantidade > LIMITE_MAX_INT:
+            return jsonify({"erro": "A quantidade deve ser entre 0 e 1.000.000.000"}), 400
+    except (ValueError, TypeError, OverflowError):
+        return jsonify({"erro": "Quantidade inválida ou excede os limites operacionais"}), 400
+
+    try:
+        preco = float(preco)
+        if preco < 0 or preco > LIMITE_MAX_INT:
+            return jsonify({"erro": "O preço deve ser positivo e não exceder 1.000.000.000"}), 400
+    except (ValueError, TypeError, OverflowError):
+        return jsonify({"erro": "Preço inválido ou excede os limites operacionais"}), 400
 
     conn = database.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO produtos (nome, preco, quantidade, categoria_id)
         VALUES (?, ?, ?, ?)
-    ''', (nome, preco, quantidade, categoria_id))
+    ''', (nome.strip(), preco, quantidade, categoria_id))
     conn.commit()
     novo_id = cursor.lastrowid
     conn.close()
@@ -282,14 +299,43 @@ def atualizar_produto(id):
         conn.close()
         return jsonify({"erro": "Produto não encontrado"}), 404
 
+    nome = dados.get('nome', produto['nome'])
+    if not nome or not isinstance(nome, str) or not nome.strip():
+        conn.close()
+        return jsonify({"erro": "O campo 'nome' é obrigatório"}), 400
+    if len(nome) > 150:
+        conn.close()
+        return jsonify({"erro": "O campo 'nome' não pode exceder 150 caracteres"}), 400
+
+    LIMITE_MAX_INT = 1_000_000_000
+    quantidade = dados.get('quantidade', produto['quantidade'])
+    try:
+        quantidade = int(quantidade)
+        if quantidade < 0 or quantidade > LIMITE_MAX_INT:
+            conn.close()
+            return jsonify({"erro": "A quantidade deve ser entre 0 e 1.000.000.000"}), 400
+    except (ValueError, TypeError, OverflowError):
+        conn.close()
+        return jsonify({"erro": "Quantidade inválida ou excede os limites operacionais"}), 400
+
+    preco = dados.get('preco', produto['preco'])
+    try:
+        preco = float(preco)
+        if preco < 0 or preco > LIMITE_MAX_INT:
+            conn.close()
+            return jsonify({"erro": "O preço deve ser positivo e não exceder 1.000.000.000"}), 400
+    except (ValueError, TypeError, OverflowError):
+        conn.close()
+        return jsonify({"erro": "Preço inválido ou excede os limites operacionais"}), 400
+
     conn.execute('''
         UPDATE produtos
         SET nome = ?, preco = ?, quantidade = ?, categoria_id = ?
         WHERE id = ?
     ''', (
-        dados.get('nome', produto['nome']),
-        dados.get('preco', produto['preco']),
-        dados.get('quantidade', produto['quantidade']),
+        nome.strip(),
+        preco,
+        quantidade,
         dados.get('categoria_id', produto['categoria_id']),
         id
     ))
