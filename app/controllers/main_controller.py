@@ -514,7 +514,6 @@ def exportar_relatorio():
                     <th>Categoria</th>
                     <th>Qtd. Atual</th>
                     <th>Mín / Máx</th>
-                    <th>Preço Un.</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -545,7 +544,7 @@ def exportar_relatorio():
 
             const tbody = document.getElementById("tabelaCorpo");
             if (filtrados.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 32px; color: #64748B;">Nenhum produto atende aos filtros selecionados.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 32px; color: #64748B;">Nenhum produto atende aos filtros selecionados.</td></tr>';
             }} else {{
                 tbody.innerHTML = filtrados.map(p => `
                     <tr>
@@ -554,7 +553,6 @@ def exportar_relatorio():
                         <td><span class="tag">${{p.categoria}}</span></td>
                         <td><strong>${{p.qtd}}</strong></td>
                         <td>${{p.min}} / ${{p.max}}</td>
-                        <td>${{p.preco}}</td>
                         <td><span class="badge badge-${{p.status.toLowerCase()}}">${{p.status}}</span></td>
                     </tr>
                 `).join("");
