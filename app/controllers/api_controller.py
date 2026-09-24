@@ -307,6 +307,43 @@ def deletar_produto(id):
         return jsonify({"erro": "Produto não encontrado"}), 404
     return jsonify({"mensagem": "Produto removido com sucesso"}), 200
 
+@api_bp.route('/produtos/<int:produto_id>/estoque', methods=['GET'])
+def api_estoque_produto_crud(produto_id):
+    conn = database.get_connection()
+    produto = conn.execute("SELECT * FROM produtos WHERE id = ?", (produto_id,)).fetchone()
+    if not produto:
+        conn.close()
+        return jsonify({"erro": "produto não encontrado"}), 404
+
+    cat_nome = "Geral"
+    if "categoria" in produto.keys() and produto["categoria"]:
+        cat_nome = produto["categoria"]
+    elif "categoria_id" in produto.keys() and produto["categoria_id"]:
+        cat = conn.execute("SELECT nome FROM categorias WHERE id = ?", (produto["categoria_id"],)).fetchone()
+        if cat:
+            cat_nome = cat["nome"]
+
+    locais = conn.execute("""
+        SELECT r.id AS rua_id, r.nome AS rua_nome, e.quantidade
+        FROM estoque e JOIN ruas r ON r.id = e.rua_id
+        WHERE e.produto_id = ? AND e.quantidade > 0
+        ORDER BY r.nome
+    """, (produto_id,)).fetchall()
+
+    ruas_destino = conn.execute("""
+        SELECT id, nome, tipo FROM ruas
+        WHERE tipo IS NULL OR tipo = ?
+        ORDER BY nome
+    """, (cat_nome,)).fetchall()
+    conn.close()
+
+    return jsonify({
+        "categoria": cat_nome,
+        "locais_origem": [dict(l) for l in locais],
+        "ruas_destino": [dict(r) for r in ruas_destino],
+    }), 200
+
+
 
 # ==================================================
 # 4. CRUD - CATEGORIAS
@@ -397,20 +434,22 @@ def criar_usuario():
     if not nome or not email or not senha:
         return jsonify({"erro": "Campos 'nome', 'email' e 'senha' são obrigatórios"}), 400
 
+    from werkzeug.security import generate_password_hash
+    hash_senha = generate_password_hash(senha)
+    papel = 'admin' if cargo in ('Administrador', 'Administradora', 'admin') else 'operador'
+    usuario_login = nome.lower().strip().replace(" ", ".")
+
     conn = database.get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO usuarios (nome, email, senha, cargo)
-            VALUES (?, ?, ?, ?)
-        ''', (nome, email, senha, cargo))
+            INSERT INTO usuarios (usuario, nome, email, senha_hash, cargo, papel)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (usuario_login, nome, email, hash_senha, cargo, papel))
         conn.commit()
         novo_id = cursor.lastrowid
     except sqlite3.IntegrityError:
-        conn.close()
         return jsonify({"erro": "E-mail já cadastrado"}), 400
-    finally:
-        conn.close()
 
     return jsonify({"mensagem": "Usuário criado com sucesso", "id": novo_id}), 201
 
@@ -420,22 +459,27 @@ def atualizar_usuario(id):
     conn = database.get_connection()
     usr = conn.execute('SELECT * FROM usuarios WHERE id = ?', (id,)).fetchone()
     if not usr:
-        conn.close()
         return jsonify({"erro": "Usuário não encontrado"}), 404
+
+    from werkzeug.security import generate_password_hash
+    nova_senha = dados.get('senha')
+    hash_senha = generate_password_hash(nova_senha) if nova_senha else usr['senha_hash']
+    novo_cargo = dados.get('cargo', usr['cargo'])
+    novo_papel = 'admin' if novo_cargo in ('Administrador', 'Administradora', 'admin') else 'operador'
 
     conn.execute('''
         UPDATE usuarios
-        SET nome = ?, email = ?, senha = ?, cargo = ?
+        SET nome = ?, email = ?, senha_hash = ?, cargo = ?, papel = ?
         WHERE id = ?
     ''', (
         dados.get('nome', usr['nome']),
         dados.get('email', usr['email']),
-        dados.get('senha', usr['senha']),
-        dados.get('cargo', usr['cargo']),
+        hash_senha,
+        novo_cargo,
+        novo_papel,
         id
     ))
     conn.commit()
-    conn.close()
     return jsonify({"mensagem": "Usuário atualizado com sucesso"}), 200
 
 @api_bp.route('/usuarios/<int:id>', methods=['DELETE'])
@@ -443,7 +487,6 @@ def deletar_usuario(id):
     conn = database.get_connection()
     res = conn.execute('DELETE FROM usuarios WHERE id = ?', (id,))
     conn.commit()
-    conn.close()
     if res.rowcount == 0:
         return jsonify({"erro": "Usuário não encontrado"}), 404
     return jsonify({"mensagem": "Usuário removido com sucesso"}), 200

@@ -16,7 +16,7 @@ def get_db():
 
 
 def init_db(conn):
-    """Cria a estrutura de tabelas necessária para a aplicação."""
+    """Cria a estrutura de tabelas necessária para a aplicação e API."""
     cursor = conn.cursor()
 
     cursor.executescript(
@@ -24,6 +24,10 @@ def init_db(conn):
         DROP TABLE IF EXISTS estoque_local;
         DROP TABLE IF EXISTS endereco_estoque;
         DROP TABLE IF EXISTS movimento;
+        DROP TABLE IF EXISTS movimentacoes;
+        DROP TABLE IF EXISTS entradas;
+        DROP TABLE IF EXISTS saidas;
+        DROP TABLE IF EXISTS estoque;
         DROP TABLE IF EXISTS produtos;
         DROP TABLE IF EXISTS drives;
         DROP TABLE IF EXISTS ruas;
@@ -34,11 +38,14 @@ def init_db(conn):
 
         CREATE TABLE usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario TEXT,
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             senha TEXT,
-            senha_hash TEXT,
-            cargo TEXT DEFAULT 'Operador'
+            senha_hash TEXT NOT NULL,
+            papel TEXT DEFAULT 'operador',
+            cargo TEXT DEFAULT 'Operador',
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE empresas (
@@ -76,10 +83,12 @@ def init_db(conn):
 
         CREATE TABLE ruas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
+            nome TEXT UNIQUE NOT NULL,
+            tipo TEXT,
             descricao TEXT,
             corredor TEXT,
-            prateleira TEXT
+            prateleira TEXT,
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE drives (
@@ -105,18 +114,30 @@ def init_db(conn):
         CREATE TABLE produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
-            sku TEXT UNIQUE,
+            sku TEXT UNIQUE NOT NULL,
             preco INTEGER DEFAULT 0,
+            categoria TEXT,
             categoria_id INTEGER,
             fornecedor_id INTEGER,
             drive_id INTEGER,
             quantidade INTEGER NOT NULL DEFAULT 0,
+            estoque_min INTEGER NOT NULL DEFAULT 0,
+            estoque_max INTEGER NOT NULL DEFAULT 0,
             quantidade_minima INTEGER NOT NULL DEFAULT 0,
             descricao TEXT,
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
             atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (categoria_id) REFERENCES categorias (id),
             FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id),
             FOREIGN KEY (drive_id) REFERENCES drives (id)
+        );
+
+        CREATE TABLE estoque (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+            rua_id INTEGER NOT NULL REFERENCES ruas(id) ON DELETE CASCADE,
+            quantidade INTEGER NOT NULL DEFAULT 0,
+            UNIQUE (produto_id, rua_id)
         );
 
         CREATE TABLE estoque_local (
@@ -143,9 +164,46 @@ def init_db(conn):
             FOREIGN KEY (usuario_id) REFERENCES usuarios (id),
             FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id)
         );
+
+        CREATE TABLE movimentacoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+            rua_origem_id INTEGER REFERENCES ruas(id),
+            rua_destino_id INTEGER REFERENCES ruas(id),
+            quantidade INTEGER NOT NULL,
+            tipo TEXT NOT NULL CHECK (tipo IN ('cadastro', 'transferencia')),
+            usuario_id INTEGER REFERENCES usuarios(id),
+            data TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE saidas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+            rua_id INTEGER NOT NULL REFERENCES ruas(id),
+            quantidade INTEGER NOT NULL,
+            motivo TEXT,
+            usuario_id INTEGER REFERENCES usuarios(id),
+            data TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE entradas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+            rua_id INTEGER NOT NULL REFERENCES ruas(id),
+            quantidade INTEGER NOT NULL,
+            tipo TEXT NOT NULL CHECK (tipo IN ('novo_produto', 'reabastecimento')),
+            usuario_id INTEGER REFERENCES usuarios(id),
+            data TEXT NOT NULL DEFAULT (datetime('now'))
+        );
     """
     )
     conn.commit()
+
+
+def data_com_offset(dias_atras, hora=12, minuto=0):
+    momento = datetime.now() - timedelta(days=dias_atras)
+    momento = momento.replace(hour=hora, minute=minuto, second=0, microsecond=0)
+    return momento.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def seed():
@@ -156,39 +214,55 @@ def seed():
     # 1. Usuários
     usuarios = [
         (
+            "admin",
+            "Administrador Padrão",
+            "admin@techstock.com",
+            generate_password_hash("admin123"),
+            "admin",
+            "Administrador",
+        ),
+        (
+            "pamela",
             "Pâmela Cristina",
             "pamela@techstock.com",
             generate_password_hash("admin123"),
+            "admin",
             "Administradora",
         ),
         (
+            "thiago",
             "Thiago Rodrigues",
             "thiago@techstock.com",
             generate_password_hash("user123"),
+            "operador",
             "Operador de Estoque",
         ),
         (
+            "mauricio",
             "Mauricio Keiser",
             "mauricio@techstock.com",
             generate_password_hash("user123"),
+            "operador",
             "Técnico de Suporte",
         ),
     ]
     cursor.executemany(
-        "INSERT INTO usuarios (nome, email, senha_hash, cargo) VALUES (?, ?, ?, ?)",
+        "INSERT INTO usuarios (usuario, nome, email, senha_hash, papel, cargo) VALUES (?, ?, ?, ?, ?, ?)",
         usuarios,
     )
 
     # 2. Categorias
     categorias = [
-        ("Memória",),
-        ("Armazenamento",),
-        ("Placa-mãe",),
-        ("Fonte",),
-        ("Refrigeração",),
-        ("Processador",),
+        ("Memória", "Módulos de memória RAM para servidores e desktops"),
+        ("Armazenamento", "Dispositivos de armazenamento rápido SSD e HD"),
+        ("Placa-mãe", "Placas-mãe e circuitos principais"),
+        ("Energia", "Fontes de alimentação e nobreaks"),
+        ("Refrigeração", "Coolers, fans e sistemas de water cooling"),
+        ("Cabos", "Cabos de conexão, dados e energia"),
+        ("Processador", "CPUs de alta performance"),
+        ("Gabinete", "Chassis e gabinetes para montagem"),
     ]
-    cursor.executemany("INSERT INTO categorias (nome) VALUES (?)", categorias)
+    cursor.executemany("INSERT INTO categorias (nome, descritivo) VALUES (?, ?)", categorias)
 
     # 3. Empresas (Fabricantes / Fornecedores)
     empresas = [
@@ -215,7 +289,7 @@ def seed():
             "SP",
         ),
         (
-            "AMD Semimodutores",
+            "AMD Semicondutores",
             "Advanced Micro Devices Brasil",
             "07.890.123/0001-44",
             "fabricante",
@@ -271,235 +345,118 @@ def seed():
         fornecedores,
     )
 
-    # Mapeamento auxiliar de Categoria ID
+    # 5. Ruas e Endereços Físicos
+    ruas_data = [
+        ("Rua A1", "Memória", "Corredor A - Vão 01", "A", "01"),
+        ("Rua B2", "Armazenamento", "Corredor B - Vão 01", "B", "01"),
+        ("Rua C3", "Energia", "Corredor C - Vão 01", "C", "01"),
+        ("Rua D4", "Placa-mãe", "Corredor D - Vão 01", "D", "01"),
+        ("Rua E5", "Refrigeração", "Corredor E - Vão 01", "E", "01"),
+        ("Rua F6", "Cabos", "Corredor F - Vão 01", "F", "01"),
+        ("Rua G7", "Processador", "Corredor G - Vão 01", "G", "01"),
+        ("Rua H8", "Gabinete", "Corredor H - Vão 01", "H", "01"),
+    ]
+
+    rua_map = {}
+    for nome_rua, tipo, desc, corr, prat in ruas_data:
+        cursor.execute(
+            "INSERT INTO ruas (nome, tipo, descricao, corredor, prateleira) VALUES (?, ?, ?, ?, ?)",
+            (nome_rua, tipo, desc, corr, prat),
+        )
+        rua_map[nome_rua] = cursor.lastrowid
+
+    # 6. Produtos
     cursor.execute("SELECT id, nome FROM categorias")
     cat_map = {row["nome"]: row["id"] for row in cursor.fetchall()}
 
-    # 3. Ruas e Drives
-    ruas_data = [
-        (
-            "Rua 01",
-            "Memórias e Processadores",
-            [
-                ("A1", "Memória RAM DDR4", 62),
-                ("A2", "Memória RAM DDR5", 88),
-                ("A3", "Processadores Intel", 20),
-                ("A4", "Processadores AMD", 100),
-                ("A5", "Vazio", 0),
-                ("A6", "Coolers de CPU", 45),
-                ("A7", "Pasta térmica", 70),
-                ("A8", "Suportes e brackets", 92),
-            ],
-        ),
-        (
-            "Rua 02",
-            "Armazenamento",
-            [
-                ("B1", "SSD SATA", 55),
-                ("B2", "SSD NVMe", 30),
-                ("B3", "HD 3.5\"", 12),
-                ("B4", "HD 2.5\"", 95),
-                ("B5", "Gabinetes externos", 40),
-                ("B6", "Cabos SATA", 100),
-                ("B7", "Adaptadores M.2", 8),
-                ("B8", "Vazio", 0),
-                ("B9", "Pendrives", 66),
-                ("B10", "Cartões de memória", 77),
-            ],
-        ),
-        (
-            "Rua 03",
-            "Placas-mãe",
-            [
-                ("C1", "Placas-mãe ATX", 48),
-                ("C2", "Placas-mãe Micro-ATX", 60),
-                ("C3", "Placas-mãe Mini-ITX", 90),
-                ("C4", "Baterias CMOS", 25),
-                ("C5", "Parafusos e espaçadores", 100),
-                ("C6", "Cabos flat", 15),
-                ("C7", "Vazio", 0),
-            ],
-        ),
-        (
-            "Rua 04",
-            "Fontes e Coolers",
-            [
-                ("D1", "Fontes ATX 500W", 33),
-                ("D2", "Fontes ATX 650W", 58),
-                ("D3", "Fontes modulares", 80),
-                ("D4", "Coolers a ar", 12),
-                ("D5", "Water coolers", 47),
-                ("D6", "Fitas e conectores", 100),
-                ("D7", "Ventoinhas 120mm", 5),
-                ("D8", "Vazio", 0),
-                ("D9", "Cabos de força", 68),
-            ],
-        ),
+    produtos_seed = [
+        dict(nome="Memória RAM DDR4 8GB", sku="MEM-RAM-8G", categoria="Memória", preco=14990,
+             minimo=10, maximo=60, rua="Rua A1", dia_cadastro=6, qtd_cadastro=50,
+             reabastecimentos=[], saidas=[(2, 8)]),
+        dict(nome="SSD NVMe 512GB", sku="SSD-NVME-512", categoria="Armazenamento", preco=22990,
+             minimo=10, maximo=40, rua="Rua B2", dia_cadastro=5, qtd_cadastro=20,
+             reabastecimentos=[], saidas=[(1, 12)]),
+        dict(nome="Fonte 650W 80 Plus", sku="FONTE-650W", categoria="Energia", preco=28990,
+             minimo=5, maximo=25, rua="Rua C3", dia_cadastro=5, qtd_cadastro=15,
+             reabastecimentos=[(2, 5)], saidas=[(0, 1)]),
+        dict(nome="Placa-mãe B450M", sku="PM-B450M", categoria="Placa-mãe", preco=45990,
+             minimo=8, maximo=20, rua="Rua D4", dia_cadastro=4, qtd_cadastro=20,
+             reabastecimentos=[], saidas=[(3, 9), (1, 8)]),
+        dict(nome="Water Cooler 240mm", sku="WC-240", categoria="Refrigeração", preco=35990,
+             minimo=5, maximo=15, rua="Rua E5", dia_cadastro=3, qtd_cadastro=12,
+             reabastecimentos=[], saidas=[(1, 3)]),
+        dict(nome="Cabo HDMI 2.0 1,5m", sku="CABO-HDMI-15", categoria="Cabos", preco=2990,
+             minimo=15, maximo=50, rua="Rua F6", dia_cadastro=2, qtd_cadastro=40,
+             reabastecimentos=[(1, 10)], saidas=[(0, 9)]),
+        dict(nome="Processador Ryzen 5 5600", sku="CPU-R5-5600", categoria="Processador", preco=84990,
+             minimo=5, maximo=15, rua="Rua G7", dia_cadastro=1, qtd_cadastro=15,
+             reabastecimentos=[], saidas=[(2, 9)]),
+        dict(nome="Gabinete Mid Tower ATX", sku="GAB-MID-ATX", categoria="Gabinete", preco=19990,
+             minimo=5, maximo=15, rua="Rua H8", dia_cadastro=0, qtd_cadastro=10,
+             reabastecimentos=[], saidas=[]),
     ]
 
-    drive_map = {}
-    for nome_rua, desc, drives in ruas_data:
-        cursor.execute(
-            "INSERT INTO ruas (nome, descricao) VALUES (?, ?)", (nome_rua, desc)
-        )
-        rua_id = cursor.lastrowid
-        for codigo, cat_sugerida, ocupacao in drives:
-            cursor.execute(
-                "INSERT INTO drives (rua_id, codigo, categoria_sugerida, ocupacao_pct) VALUES (?, ?, ?, ?)",
-                (rua_id, codigo, cat_sugerida, ocupacao),
-            )
-            drive_map[codigo] = cursor.lastrowid
+    for p in produtos_seed:
+        cat_id = cat_map.get(p["categoria"], 1)
+        rua_id = rua_map[p["rua"]]
+        cur = cursor.execute("""
+            INSERT INTO produtos (nome, sku, preco, categoria, categoria_id, estoque_min, estoque_max, quantidade, quantidade_minima, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (p["nome"], p["sku"], p["preco"], p["categoria"], cat_id, p["minimo"], p["maximo"], p["qtd_cadastro"], p["minimo"],
+              data_com_offset(p["dia_cadastro"], 8, 0), data_com_offset(p["dia_cadastro"], 8, 0)))
+        produto_id = cur.lastrowid
 
-    # 4. Produtos
-    now = datetime.now()
-    produtos = [
-        (
-            "Memória RAM 8GB DDR4 3200MHz",
-            "SKU-0231",
-            14990,
-            cat_map["Memória"],
-            drive_map["A1"],
-            148,
-            20,
-            "Módulo de memória desktop DDR4 3200MHz",
-            (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            "SSD NVMe 512GB",
-            "SKU-0119",
-            22990,
-            cat_map["Armazenamento"],
-            drive_map["B2"],
-            9,
-            15,
-            "SSD M.2 NVMe PCIe 3.0 leitura até 3000MB/s",
-            (now - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            "Fonte ATX 550W 80 Plus",
-            "SKU-0087",
-            28990,
-            cat_map["Fonte"],
-            drive_map["D1"],
-            0,
-            5,
-            "Fonte PFC Ativo com certificação 80 Plus Bronze",
-            (now - timedelta(days=1, hours=4)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            "Placa-mãe B450M Gaming",
-            "SKU-0054",
-            45990,
-            cat_map["Placa-mãe"],
-            drive_map["C2"],
-            31,
-            10,
-            "Socket AM4 suporte a Ryzen Séries 3000/4000/5000",
-            (now - timedelta(days=1, hours=6)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            "Cooler Master Hyper 212",
-            "SKU-0176",
-            17990,
-            cat_map["Refrigeração"],
-            drive_map["A6"],
-            17,
-            8,
-            "Air cooler para CPU presilha multi-socket Intel/AMD",
-            (now - timedelta(days=1, hours=10)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            "Processador Ryzen 5 5600",
-            "SKU-0212",
-            84990,
-            cat_map["Processador"],
-            drive_map["A4"],
-            6,
-            10,
-            "6 Cores, 12 Threads, 3.5GHz (4.4GHz Turbo)",
-            (now - timedelta(days=2, hours=5)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-    ]
+        # Saldo inicial na tabela estoque
+        cursor.execute("INSERT INTO estoque (produto_id, rua_id, quantidade) VALUES (?, ?, ?)",
+                       (produto_id, rua_id, p["qtd_cadastro"]))
 
-    cursor.executemany(
-        """INSERT INTO produtos 
-           (nome, sku, preco, categoria_id, drive_id, quantidade, quantidade_minima, descricao, atualizado_em) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        produtos,
-    )
+        # Entrada inicial
+        cursor.execute("""
+            INSERT INTO entradas (produto_id, rua_id, quantidade, tipo, usuario_id, data)
+            VALUES (?, ?, ?, 'novo_produto', 1, ?)
+        """, (produto_id, rua_id, p["qtd_cadastro"], data_com_offset(p["dia_cadastro"], 8, 0)))
 
-    # Mapeamentos para Movimentações
-    cursor.execute("SELECT id, nome FROM usuarios")
-    usr_map = {row["nome"]: row["id"] for row in cursor.fetchall()}
+        cursor.execute("""
+            INSERT INTO movimento (produto_id, usuario_id, tipo, quantidade, observacao, criado_em)
+            VALUES (?, 1, 'ENTRADA', ?, 'Cadastro inicial do produto', ?)
+        """, (produto_id, p["qtd_cadastro"], data_com_offset(p["dia_cadastro"], 8, 0)))
 
-    cursor.execute("SELECT id, sku FROM produtos")
-    prod_map = {row["sku"]: row["id"] for row in cursor.fetchall()}
+        # Reabastecimentos
+        for offset_dias, qtd in p["reabastecimentos"]:
+            cursor.execute("UPDATE estoque SET quantidade = quantidade + ? WHERE produto_id = ? AND rua_id = ?",
+                           (qtd, produto_id, rua_id))
+            cursor.execute("""
+                INSERT INTO entradas (produto_id, rua_id, quantidade, tipo, usuario_id, data)
+                VALUES (?, ?, ?, 'reabastecimento', 1, ?)
+            """, (produto_id, rua_id, qtd, data_com_offset(offset_dias, 10, 0)))
+            cursor.execute("""
+                INSERT INTO movimento (produto_id, usuario_id, tipo, quantidade, observacao, criado_em)
+                VALUES (?, 1, 'ENTRADA', ?, 'Reabastecimento de estoque', ?)
+            """, (produto_id, qtd, data_com_offset(offset_dias, 10, 0)))
 
-    # 5. Movimentações
-    movimento = [
-        (
-            prod_map["SKU-0231"],
-            usr_map["Thiago Rodrigues"],
-            "ENTRADA",
-            20,
-            "Recebimento de lote via NF-10492",
-            (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            prod_map["SKU-0119"],
-            usr_map["Mauricio Keiser"],
-            "SAIDA",
-            4,
-            "Atendimento de chamado técnico #402",
-            (now - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            prod_map["SKU-0087"],
-            usr_map["Pâmela Cristina"],
-            "SAIDA",
-            2,
-            "Substituição de fontes queimadas setor comercial",
-            (now - timedelta(days=1, hours=4)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            prod_map["SKU-0054"],
-            usr_map["Thiago Rodrigues"],
-            "ENTRADA",
-            10,
-            "Reposição de estoque fornecedor",
-            (now - timedelta(days=1, hours=6)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            prod_map["SKU-0176"],
-            usr_map["Mauricio Keiser"],
-            "SAIDA",
-            1,
-            "Montagem de workstation laboratório",
-            (now - timedelta(days=1, hours=10)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-        (
-            prod_map["SKU-0212"],
-            usr_map["Pâmela Cristina"],
-            "ENTRADA",
-            8,
-            "Entrada via compra direta",
-            (now - timedelta(days=2, hours=5)).strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-    ]
+        # Saídas
+        for offset_dias, qtd in p["saidas"]:
+            cursor.execute("UPDATE estoque SET quantidade = quantidade - ? WHERE produto_id = ? AND rua_id = ?",
+                           (qtd, produto_id, rua_id))
+            cursor.execute("""
+                INSERT INTO saidas (produto_id, rua_id, quantidade, motivo, usuario_id, data)
+                VALUES (?, ?, ?, 'Venda / Despacho balcão', 1, ?)
+            """, (produto_id, rua_id, qtd, data_com_offset(offset_dias, 15, 0)))
+            cursor.execute("""
+                INSERT INTO movimento (produto_id, usuario_id, tipo, quantidade, observacao, criado_em)
+                VALUES (?, 1, 'SAIDA', ?, 'Venda / Despacho balcão', ?)
+            """, (produto_id, qtd, data_com_offset(offset_dias, 15, 0)))
 
-    cursor.executemany(
-        """INSERT INTO movimento 
-           (produto_id, usuario_id, tipo, quantidade, observacao, criado_em) 
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        movimento,
-    )
+        # Atualiza a coluna agregada produtos.quantidade
+        saldo_atual = cursor.execute("SELECT COALESCE(SUM(quantidade), 0) AS total FROM estoque WHERE produto_id = ?", (produto_id,)).fetchone()["total"]
+        cursor.execute("UPDATE produtos SET quantidade = ? WHERE id = ?", (saldo_atual, produto_id))
 
-    # 6. Endereço de Estoque (Hierarquia / Corredores)
+    # 7. Endereço de Estoque & Estoque Local
     enderecos = [
         ("Corredor A - Vão 01", "vao", "A", "01", None, "A/01", 1),
-        ("Corredor A - Vão 02", "vao", "A", "02", None, "A/02", 1),
         ("Corredor B - Vão 01", "vao", "B", "01", None, "B/01", 1),
         ("Corredor C - Vão 01", "vao", "C", "01", None, "C/01", 1),
+        ("Corredor D - Vão 01", "vao", "D", "01", None, "D/01", 1),
     ]
     cursor.executemany(
         """INSERT INTO endereco_estoque (nome, tipo, corredor, prateleira, parent_id, caminho, em_uso)
@@ -507,26 +464,19 @@ def seed():
         enderecos,
     )
 
-    # 7. Estoque Local (Vínculo Produto <-> Endereço / Empresa)
     cursor.execute("SELECT id FROM empresas LIMIT 1")
     emp_row = cursor.fetchone()
     emp_id = emp_row["id"] if emp_row else 1
 
-    estoque_local_data = [
-        (prod_map["SKU-0231"], 1, emp_id, 148),
-        (prod_map["SKU-0119"], 2, emp_id, 9),
-        (prod_map["SKU-0054"], 3, emp_id, 31),
-        (prod_map["SKU-0176"], 4, emp_id, 17),
-    ]
-    cursor.executemany(
-        """INSERT INTO estoque_local (produto_id, endereco_estoque_id, empresa_id, quantidade)
-           VALUES (?, ?, ?, ?)""",
-        estoque_local_data,
-    )
+    for prod_id, end_id, qtd in [(1, 1, 42), (2, 2, 8), (3, 3, 19), (4, 4, 3)]:
+        cursor.execute(
+            "INSERT INTO estoque_local (produto_id, endereco_estoque_id, empresa_id, quantidade) VALUES (?, ?, ?, ?)",
+            (prod_id, end_id, emp_id, qtd),
+        )
 
     conn.commit()
     conn.close()
-    print("Sucesso: Banco de dados inicializado e popularizado com dados do seed!")
+    print("Sucesso: Banco de dados techstock.db inicializado e popularizado com dados completos!")
 
 
 if __name__ == "__main__":

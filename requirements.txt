@@ -1,3 +1,4 @@
 Flask>=3.0.0
 Werkzeug>=3.0.0
-# Python >= 3.8 necessário (dataclasses, sqlite3 são built-ins)
+pytest>=8.0.0
+gunicorn>=21.0.0

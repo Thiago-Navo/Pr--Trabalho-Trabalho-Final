@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from flask import g
 
@@ -5,12 +6,15 @@ from flask import g
 class Database:
     """Conexão única com o banco SQLite, gerenciada pelo Flask."""
 
-    def __init__(self, db_path: str = "techstock.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: str = None):
+        self.db_path = db_path or os.environ.get("DATABASE_PATH", "techstock.db")
 
     def get_connection(self) -> sqlite3.Connection:
         """Retorna a conexão ativa (cria uma se não existir)."""
         if "db" not in g:
+            dir_pai = os.path.dirname(self.db_path)
+            if dir_pai and not os.path.exists(dir_pai):
+                os.makedirs(dir_pai, exist_ok=True)
             g.db = sqlite3.connect(self.db_path)
             g.db.row_factory = sqlite3.Row
             g.db.execute("PRAGMA foreign_keys = ON")
