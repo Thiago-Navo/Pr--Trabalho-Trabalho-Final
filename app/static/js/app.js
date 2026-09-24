@@ -397,24 +397,61 @@ function initGraficoMovimentacoesServidor(canvasId, dados) {
   registroGraficos[canvasId].instancia = criarGraficoMovimentacoes(canvasId, dados);
 }
 
+/* ---- Cores de alto contraste e sem repetição para gráficos ---- */
+function gerarCoresDistintas(qtd) {
+  const paletaBase = [
+    "#0EA5A0", // 1. Teal vibrante
+    "#8B5CF6", // 2. Roxo violeta
+    "#F59E0B", // 3. Âmbar dourado
+    "#2563EB", // 4. Azul royal
+    "#EF4444", // 5. Vermelho coral
+    "#10B981", // 6. Verde esmeralda
+    "#EC4899", // 7. Rosa pink
+    "#0284C7", // 8. Azul celeste
+    "#F97316", // 9. Laranja vivo
+    "#6366F1", // 10. Índigo profundo
+    "#84CC16", // 11. Verde limão
+    "#14B8A6", // 12. Ciano escuro
+    "#A855F7", // 13. Púrpura
+    "#D97706", // 14. Ocre bronze
+    "#06B6D4", // 15. Ciano claro
+    "#E11D48", // 16. Carmesim
+  ];
+
+  if (qtd <= paletaBase.length) {
+    return paletaBase.slice(0, qtd);
+  }
+
+  // Gera cores pelo ângulo áureo (137.508°) garantindo dispersão máxima no círculo cromático
+  const cores = [...paletaBase];
+  const passoAureo = 137.508;
+  let matiz = (195 + paletaBase.length * passoAureo) % 360;
+
+  for (let i = paletaBase.length; i < qtd; i++) {
+    const sat = 74 + (i % 3) * 5;
+    const lum = 48 + (i % 2) * 6;
+    cores.push(`hsl(${Math.round(matiz)}, ${sat}%, ${lum}%)`);
+    matiz = (matiz + passoAureo) % 360;
+  }
+  return cores;
+}
+
 /* ---- Gráfico de categorias, alimentado com dados vindos do Jinja2/Flask ---- */
 function criarGraficoCategorias(canvasId, dados) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || typeof Chart === "undefined") return null;
 
-  // Paleta com 6 cores fixas — uma para cada categoria "principal" que o
-  // servidor manda (no máximo 6, veja app.py). "Outros" nunca usa a
-  // paleta: fica sempre cinza, para não repetir cor com nenhuma fatia
-  // real e para deixar claro visualmente que é uma soma de sobras.
-  const paleta = ["#0EA5A0", "#F5A524", "#E4572E", "#2FA36B", "#8B5CF6", "#3B82F6"];
   const CINZA_OUTROS = "#8B97A6";
   const corTexto = corDoTema("--color-text-muted", "#6B7785");
   const corFundo = corDoTema("--color-surface", "#FFFFFF");
 
+  const totalCategorias = dados.labels.filter((r) => r !== "Outros").length;
+  const paleta = gerarCoresDistintas(totalCategorias);
+
   let indiceCor = 0;
   const cores = dados.labels.map((rotulo) => {
     if (rotulo === "Outros") return CINZA_OUTROS;
-    const cor = paleta[indiceCor % paleta.length];
+    const cor = paleta[indiceCor];
     indiceCor += 1;
     return cor;
   });

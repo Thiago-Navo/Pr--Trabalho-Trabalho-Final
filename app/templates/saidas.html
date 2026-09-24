@@ -69,7 +69,7 @@
             <tbody>
               {% for s in historico %}
               <tr data-produto="{{ s.produto_nome|lower }}">
-                <td>{{ s.data }}</td>
+                <td>{{ s.data | data_br }}</td>
                 <td style="font-weight:600;">{{ s.produto_nome }}</td>
                 <td>{{ s.rua_nome }}</td>
                 <td class="qtd">{{ s.quantidade }}</td>

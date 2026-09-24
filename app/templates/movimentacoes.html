@@ -72,7 +72,7 @@
             <tbody>
               {% for m in historico %}
               <tr data-produto="{{ m.produto_nome|lower }}">
-                <td>{{ m.data }}</td>
+                <td>{{ m.data | data_br }}</td>
                 <td style="font-weight:600;">{{ m.produto_nome }}</td>
                 <td>{{ m.rua_origem_nome or '— (cadastro)' }}</td>
                 <td>{{ m.rua_destino_nome }}</td>
@@ -100,8 +100,26 @@
   const avisoDestino = document.getElementById("avisoDestino");
   const btnMoverTudo = document.getElementById("btnMoverTudo");
 
+  let listaRuasDestinoGeral = [];
+
   function habilitarCampos(habilitar) {
     [selOrigem, selDestino, inputQtd].forEach((el) => (el.disabled = !habilitar));
+  }
+
+  function atualizarOpcoesDestino() {
+    const origemId = String(selOrigem.value || "");
+    const opcoesValidas = listaRuasDestinoGeral.filter((r) => String(r.id) !== origemId);
+
+    if (opcoesValidas.length === 0) {
+      selDestino.innerHTML = '<option value="" disabled selected>Nenhuma outra rua de destino disponível</option>';
+      return;
+    }
+
+    selDestino.innerHTML =
+      '<option value="" disabled selected>Selecione a rua de destino...</option>' +
+      opcoesValidas
+        .map((r) => `<option value="${r.id}">${r.nome}${r.tipo ? " — " + r.tipo : " — livre"}</option>`)
+        .join("");
   }
 
   async function carregarEstoqueDoProduto() {
@@ -128,9 +146,8 @@
         .map((l) => `<option value="${l.rua_id}" data-qtd="${l.quantidade}">${l.rua_nome} (${l.quantidade} disp.)</option>`)
         .join("");
 
-      selDestino.innerHTML = dados.ruas_destino
-        .map((r) => `<option value="${r.id}">${r.nome}${r.tipo ? " — " + r.tipo : " — livre"}</option>`)
-        .join("");
+      listaRuasDestinoGeral = dados.ruas_destino || [];
+      atualizarOpcoesDestino();
 
       avisoDestino.textContent = `Apenas ruas livres ou já do tipo "${dados.categoria}" aparecem como destino.`;
       atualizarDisponivel();
@@ -149,7 +166,10 @@
   }
 
   selProduto.addEventListener("change", carregarEstoqueDoProduto);
-  selOrigem.addEventListener("change", atualizarDisponivel);
+  selOrigem.addEventListener("change", () => {
+    atualizarDisponivel();
+    atualizarOpcoesDestino();
+  });
   btnMoverTudo.addEventListener("click", () => {
     const opt = selOrigem.selectedOptions[0];
     if (opt) inputQtd.value = opt.dataset.qtd || 0;

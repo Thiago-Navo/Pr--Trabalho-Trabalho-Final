@@ -417,6 +417,26 @@ def exportar_relatorio():
             transition: opacity 0.2s;
         }}
         .btn:hover {{ opacity: 0.9; }}
+        .btn-voltar {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #F1F5F9;
+            color: #0F172A;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+        }}
+        .btn-voltar:hover {{
+            background: #E2E8F0;
+            color: #0284C7;
+            border-color: #0284C7;
+        }}
         table {{
             width: 100%;
             border-collapse: collapse;
@@ -449,7 +469,7 @@ def exportar_relatorio():
         }}
         @media print {{
             body {{ background: #FFFFFF; padding: 0; }}
-            .controls, .badge-offline {{ display: none; }}
+            .controls, .badge-offline, .btn-voltar {{ display: none !important; }}
             table, header, .kpi-card {{ box-shadow: none; border: 1px solid #CBD5E1; }}
         }}
     </style>
@@ -458,6 +478,11 @@ def exportar_relatorio():
     <div class="container">
         <header>
             <div class="brand">
+                <div style="margin-bottom: 10px;">
+                    <a href="/dashboard" class="btn-voltar" onclick="voltarDashboard(event)">
+                        ⬅️ Voltar ao Dashboard
+                    </a>
+                </div>
                 <h1>📦 TechStock — Relatório de Estoque</h1>
                 <p>Relatório Standalone gerado em {data_geracao}</p>
             </div>
@@ -514,7 +539,6 @@ def exportar_relatorio():
                     <th>Categoria</th>
                     <th>Qtd. Atual</th>
                     <th>Mín / Máx</th>
-                    <th>Preço Un.</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -545,7 +569,7 @@ def exportar_relatorio():
 
             const tbody = document.getElementById("tabelaCorpo");
             if (filtrados.length === 0) {{
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 32px; color: #64748B;">Nenhum produto atende aos filtros selecionados.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 32px; color: #64748B;">Nenhum produto atende aos filtros selecionados.</td></tr>';
             }} else {{
                 tbody.innerHTML = filtrados.map(p => `
                     <tr>
@@ -554,7 +578,6 @@ def exportar_relatorio():
                         <td><span class="tag">${{p.categoria}}</span></td>
                         <td><strong>${{p.qtd}}</strong></td>
                         <td>${{p.min}} / ${{p.max}}</td>
-                        <td>${{p.preco}}</td>
                         <td><span class="badge badge-${{p.status.toLowerCase()}}">${{p.status}}</span></td>
                     </tr>
                 `).join("");
@@ -566,6 +589,17 @@ def exportar_relatorio():
         document.getElementById("busca").addEventListener("input", renderizar);
         document.getElementById("filtroCategoria").addEventListener("change", renderizar);
         document.getElementById("filtroStatus").addEventListener("change", renderizar);
+
+        function voltarDashboard(e) {{
+            if (e) e.preventDefault();
+            if (window.location.protocol.startsWith("http")) {{
+                window.location.href = "/dashboard";
+            }} else if (window.history.length > 1 && document.referrer) {{
+                window.history.back();
+            }} else {{
+                window.location.href = "http://127.0.0.1:5001/dashboard";
+            }}
+        }}
 
         // Inicialização imediata
         renderizar();
