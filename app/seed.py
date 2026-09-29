@@ -179,7 +179,7 @@ def init_db(conn):
         CREATE TABLE saidas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
-            rua_id INTEGER NOT NULL REFERENCES ruas(id),
+            rua_id INTEGER REFERENCES ruas(id),
             quantidade INTEGER NOT NULL,
             motivo TEXT,
             usuario_id INTEGER REFERENCES usuarios(id),
@@ -189,7 +189,7 @@ def init_db(conn):
         CREATE TABLE entradas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
-            rua_id INTEGER NOT NULL REFERENCES ruas(id),
+            rua_id INTEGER REFERENCES ruas(id),
             quantidade INTEGER NOT NULL,
             tipo TEXT NOT NULL CHECK (tipo IN ('novo_produto', 'reabastecimento')),
             usuario_id INTEGER REFERENCES usuarios(id),

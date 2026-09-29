@@ -15,7 +15,7 @@
       <p>Visão geral do estoque em tempo real</p>
     </div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-      <a href="{{ url_for('exportar_relatorio') }}" class="btn btn-outline-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 500; border-radius: 8px;">
+      <a href="{{ url_for('exportar_relatorio') }}" data-full-reload class="btn btn-outline-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 500; border-radius: 8px;">
         <i class="bi bi-file-earmark-arrow-down"></i> Exportar Relatório (Offline)
       </a>
       <a href="{{ url_for('movimentacoes') }}" class="btn-primary-custom">
