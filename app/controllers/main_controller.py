@@ -712,6 +712,10 @@ def excluir_rua(rua_id):
         flash("Não é possível excluir: essa rua ainda tem produtos guardados nela.", "danger")
         return redirect(url_for("ruas"))
 
+    db.execute("UPDATE movimentacoes SET rua_origem_id = NULL WHERE rua_origem_id = ?", (rua_id,))
+    db.execute("UPDATE movimentacoes SET rua_destino_id = NULL WHERE rua_destino_id = ?", (rua_id,))
+    db.execute("UPDATE entradas SET rua_id = NULL WHERE rua_id = ?", (rua_id,))
+    db.execute("UPDATE saidas SET rua_id = NULL WHERE rua_id = ?", (rua_id,))
     db.execute("DELETE FROM ruas WHERE id = ?", (rua_id,))
     db.commit()
     flash("Rua excluída.", "success")

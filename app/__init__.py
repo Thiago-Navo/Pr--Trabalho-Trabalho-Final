@@ -31,6 +31,47 @@ def init_database_if_needed():
         logger.warning(f"Erro ao verificar/inicializar banco de dados automático: {e}")
 
 
+def migrar_rua_historico():
+    """Permite manter o histórico quando uma rua vazia é removida."""
+    conn = sqlite3.connect(database.db_path)
+    tabelas = {
+        "entradas": """CREATE TABLE entradas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+            rua_id INTEGER REFERENCES ruas(id),
+            quantidade INTEGER NOT NULL,
+            tipo TEXT NOT NULL CHECK (tipo IN ('novo_produto', 'reabastecimento')),
+            usuario_id INTEGER REFERENCES usuarios(id),
+            data TEXT NOT NULL DEFAULT (datetime('now'))
+        )""",
+        "saidas": """CREATE TABLE saidas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+            rua_id INTEGER REFERENCES ruas(id),
+            quantidade INTEGER NOT NULL,
+            motivo TEXT,
+            usuario_id INTEGER REFERENCES usuarios(id),
+            data TEXT NOT NULL DEFAULT (datetime('now'))
+        )""",
+    }
+    try:
+        conn.execute("PRAGMA foreign_keys = OFF")
+        for tabela, ddl in tabelas.items():
+            colunas = conn.execute(f"PRAGMA table_info({tabela})").fetchall()
+            rua_obrigatoria = any(coluna[1] == "rua_id" and coluna[3] for coluna in colunas)
+            if not rua_obrigatoria:
+                continue
+
+            tabela_antiga = f"{tabela}_legado"
+            conn.execute(f"ALTER TABLE {tabela} RENAME TO {tabela_antiga}")
+            conn.execute(ddl)
+            conn.execute(f"INSERT INTO {tabela} SELECT * FROM {tabela_antiga}")
+            conn.execute(f"DROP TABLE {tabela_antiga}")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def formatar_data_br(valor):
     """Converte datas em formato ISO/SQLite (YYYY-MM-DD HH:MM:SS) para padrão brasileiro com hora (DD/MM/YYYY às HH:MM)."""
     if not valor:
@@ -80,6 +121,7 @@ def create_app() -> Flask:
 
     # Auto-inicializa o banco e seed se for a primeira vez rodando no PC
     init_database_if_needed()
+    migrar_rua_historico()
 
     @app.teardown_appcontext
     def fechar_conexao_db(exc):
